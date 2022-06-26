@@ -131,15 +131,13 @@ function renderFrame() {
 		player.horizonTorqueImpulse.multiplyScalar(0); // remove input force
 	}
 	
-	
-	
-	
 	if (player.torqueImpulse) {
 		// before applying torque impulse, calculate roll relative to horizon and correct for it to stabilize the aircraft
 		let euler = new THREE.Euler().setFromQuaternion(player.quaternion, "YXZ"); // euler order important here since I want to process purely the Z rotation
 		//console.log(euler.z);
-		player.torqueImpulse.z -= euler.z * 5.0;
-		console.log(euler.x);
+		player.torqueImpulse.z -= euler.z * 5.0; // firstly, attempt to correct any roll around Z axis
+		//console.log(euler.x);
+		player.torqueImpulse.x -= euler.x * 4 * Math.max(0,Math.abs(euler.x)-(Math.PI / 4)); // 22.5 deg dead zone
 		
 		let torqueImpulse = player.torqueImpulse.clone();
 		torqueImpulse.multiplyScalar(deltaTime);
@@ -148,8 +146,6 @@ function renderFrame() {
 		player.torqueImpulse.multiplyScalar(0); // remove input force
 	}
 	
-	
-
 	updatePhysics(deltaTime);
 	renderer.render(scene, camera);
 	requestAnimationFrame(renderFrame);
