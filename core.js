@@ -43,6 +43,17 @@ function start () {
 	setupPhysicsWorld();
 	setupGraphics();
 	createBlock();
+//	
+//	createBlock2({x:3,y:7,z:1});
+//	createBlock2({x:6,y:7,z:-4});
+//	
+//	
+	for (let y=0; y<20; y+=2) {
+		for (let x=-20; x<20; x+=2) {
+			createBlock2({x:x,y:y,z:-15});
+		}	
+	}
+	
 	createPlayer();
 	renderFrame();
 }
@@ -156,6 +167,19 @@ function createBlock(){
 
 	let body = blockPlane.rigidBody({physicsWorld: physicsWorld});
 //	physicsWorld.addRigidBody(body);
+}
+
+function createBlock2(pos) {
+	//threeJS Section
+//	let blockPlane = new THREE.Mesh(new THREE.BoxBufferGeometry(2,2,2), new THREE.MeshPhongMaterial({color: 0xa0afa4}));
+	let blockPlane = new THREE.Mesh(new THREE.BoxBufferGeometry(2,2,2), new THREE.MeshPhongMaterial({color: Math.floor((1<<24)*Math.random())}));
+	blockPlane.position.set(pos.x, pos.y, pos.z);
+	blockPlane.scale.set(1, 1, 1);
+	blockPlane.castShadow = true;
+	blockPlane.receiveShadow = true;
+	scene.add(blockPlane);
+
+	blockPlane.rigidBody({physicsWorld: physicsWorld, rigidBodies: rigidBodies, mass:0.05});
 }
 
 function createPlayer(){

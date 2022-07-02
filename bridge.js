@@ -26,15 +26,32 @@ THREE.Mesh.prototype.rigidBody = function(settings) {
 	transform.setOrigin(this.position.ammo());
 	transform.setRotation(this.quaternion.ammo());
 	
-	
-	
 	let motionState = new Ammo.btDefaultMotionState(transform);
-	//colShape = new Ammo.compoundShape();
-	colShape = new Ammo.btBoxShape(new Ammo.btVector3(
-		this.geometry.parameters.width*0.5
-		, this.geometry.parameters.height*0.5
-		, this.geometry.parameters.depth*0.5
-	));
+	
+	colShape = new Ammo.btCompoundShape();
+	
+	{
+		let childTransform = new Ammo.btTransform();
+		childTransform.setIdentity();
+		colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
+			this.geometry.parameters.width*0.5
+			, this.geometry.parameters.height*0.5
+			, this.geometry.parameters.depth*0.5
+		)));
+	}
+	
+	this.children.forEach(child=>{
+		let childTransform = new Ammo.btTransform();
+		childTransform.setIdentity();
+		childTransform.setOrigin(child.position.ammo());
+		childTransform.setRotation(child.quaternion.ammo());
+		colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
+			child.geometry.parameters.width*0.5
+			, child.geometry.parameters.height*0.5
+			, child.geometry.parameters.depth*0.5
+		)));
+	});
+	
 	let localInertia = new Ammo.btVector3(0, 0, 0);
 	colShape.calculateLocalInertia(settings.mass || 0, localInertia);
 	let rbInfo = new Ammo.btRigidBodyConstructionInfo(settings.mass || 0, motionState, colShape, localInertia);
