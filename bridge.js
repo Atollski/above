@@ -30,7 +30,7 @@ THREE.Mesh.prototype.rigidBody = function(settings) {
 	
 	colShape = new Ammo.btCompoundShape();
 	
-	{
+	if (this.geometry instanceof THREE.BoxBufferGeometry){
 		let childTransform = new Ammo.btTransform();
 		childTransform.setIdentity();
 		colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
@@ -45,11 +45,20 @@ THREE.Mesh.prototype.rigidBody = function(settings) {
 		childTransform.setIdentity();
 		childTransform.setOrigin(child.position.ammo());
 		childTransform.setRotation(child.quaternion.ammo());
-		colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
-			child.geometry.parameters.width*0.5
-			, child.geometry.parameters.height*0.5
-			, child.geometry.parameters.depth*0.5
-		)));
+		if (child.geometry instanceof THREE.BoxBufferGeometry) {
+			colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
+				child.geometry.parameters.width*0.5
+				, child.geometry.parameters.height*0.5
+				, child.geometry.parameters.depth*0.5
+			)));
+		} else if (child.geometry instanceof THREE.CylinderGeometry) {
+		// height, radiusTop, radiusBottom
+			colShape.addChildShape(childTransform, new Ammo.btCylinderShape(new Ammo.btVector3(
+				child.geometry.parameters.radiusTop
+				,child.geometry.parameters.height*0.5
+				,child.geometry.parameters.height*0.5// child.geometry.parameters.depth*0.5
+			)));
+		}
 	});
 	
 	let localInertia = new Ammo.btVector3(0, 0, 0);

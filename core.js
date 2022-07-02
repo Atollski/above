@@ -195,7 +195,7 @@ function createPlayer(){
 	player.castShadow = true;
 	player.receiveShadow = true;
 	
-	let cockpit = new THREE.Mesh(new THREE.BoxBufferGeometry(3,1.5,3), new THREE.MeshPhongMaterial({color: 0x0000ff}));
+	let cockpit = new THREE.Mesh(new THREE.BoxBufferGeometry(2,1.5,3), new THREE.MeshPhongMaterial({color: 0x0000ff}));
 	cockpit.material.transparent = true;
 	cockpit.material.opacity = 0.5;
 	cockpit.scale.set(1,1,1);
@@ -205,6 +205,21 @@ function createPlayer(){
 		,(cockpit.geometry.parameters.depth*0.5) - (player.geometry.parameters.depth*0.5) - 1
 	);
 	player.add(cockpit);
+	
+	// CylinderGeometry(radiusTop : Float, radiusBottom : Float, height : Float, radialSegments : Integer, heightSegments : Integer, openEnded : Boolean, thetaStart : Float, thetaLength : Float)
+	let engines = [
+		{x:2, y: 0.8, z:2}
+		,{x:-2, y: 0.8, z:2}
+		,{x:2, y: 0.8, z:-2}
+		,{x:-2, y: 0.8, z:-2}
+	];
+	engines.forEach(enginePos=>{
+		let engine = new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,10,1), new THREE.MeshPhongMaterial({color: 0x999999}));
+		engine.position.set(enginePos.x, enginePos.y, enginePos.z);
+		engine.castShadow = true;
+		engine.receiveShadow = true;
+		player.add(engine);
+	});
 	
 	scene.add(player);
 
