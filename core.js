@@ -4,7 +4,6 @@
 let physicsWorld, scene, camera, renderer, rigidBodies = [];
 let keys = [];
 
-
 let player = null; // this will eventually get set up with the player object
 
 //Ammojs Initialization
@@ -36,20 +35,8 @@ window.addEventListener("mousemove", event=>{
 		player.torqueImpulse.x += event.movementY * 2.0;
 	}
 });
+
 window.addEventListener('contextmenu', event => event.preventDefault()); // disable right click
-//
-// Utilities to convert from THREE to Ammo
-THREE.Vector3.prototype.ammo = function() { // Vector conversion
-	return new Ammo.btVector3(this.x,this.y,this.z);
-};
-
-THREE.Quaternion.prototype.ammo = function() { // Quaternion conversion
-	return new Ammo.btQuaternion(this.x,this.y,this.z, this.w);
-};
-
-THREE.Mesh.prototype.ammo = function() { // attach physics to mesh
-	
-}
 
 function start () {
 	tmpTrans = new Ammo.btTransform();
@@ -116,16 +103,13 @@ function setupGraphics(){
 	renderer.gammaInput = true;
 	renderer.gammaOutput = true;
 	renderer.shadowMap.enabled = true;
-	renderer.domElement.onclick = () => {renderer.domElement.requestPointerLock();}	
+	renderer.domElement.onclick = () => {renderer.domElement.requestPointerLock();}; // lock pointer to world
 }
 
 function renderFrame() {
 	let deltaTime = clock.getDelta();
 
 	// handle forces here
-
-	//let torqueImpulse = new Ammo.btVector3(
-
 
 	if (player.impulse) {
 		let impulse = player.impulse.clone();
@@ -161,30 +145,17 @@ function renderFrame() {
 
 function createBlock(){
 	let pos = {x: 0, y: 0, z: 0};
-	let scale = {x: 50, y: 2, z: 50};
-	let quat = {x: 0, y: 0, z: 0, w: 1};
-	let mass = 0;
-
+	
 	//threeJS Section
-	let blockPlane = new THREE.Mesh(new THREE.BoxBufferGeometry(), new THREE.MeshPhongMaterial({color: 0xa0afa4}));
+	let blockPlane = new THREE.Mesh(new THREE.BoxBufferGeometry(50,2,50), new THREE.MeshPhongMaterial({color: 0xa0afa4}));
 	blockPlane.position.set(pos.x, pos.y, pos.z);
-	blockPlane.scale.set(scale.x, scale.y, scale.z);
+	blockPlane.scale.set(1, 1, 1);
 	blockPlane.castShadow = true;
 	blockPlane.receiveShadow = true;
 	scene.add(blockPlane);
 
-	//Ammojs Section
-	let transform = new Ammo.btTransform();
-	transform.setIdentity();
-	transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
-	transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
-	let motionState = new Ammo.btDefaultMotionState(transform);
-	let colShape = new Ammo.btBoxShape(new Ammo.btVector3(scale.x*0.5, scale.y*0.5, scale.z*0.5));
-	let localInertia = new Ammo.btVector3(0, 0, 0);
-	colShape.calculateLocalInertia(mass, localInertia);
-	let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
-	let body = new Ammo.btRigidBody(rbInfo);
-	physicsWorld.addRigidBody(body);
+	let body = blockPlane.rigidBody({physicsWorld: physicsWorld});
+//	physicsWorld.addRigidBody(body);
 }
 
 function createPlayer(){
@@ -214,27 +185,9 @@ function createPlayer(){
 	scene.add(player);
 
 	//Ammojs Section
-	let transform = new Ammo.btTransform();
-	transform.setIdentity();
-	transform.setOrigin(player.position.ammo());
-	transform.setRotation(player.quaternion.ammo());
-	
-	let motionState = new Ammo.btDefaultMotionState(transform);
-	colShape = new Ammo.btBoxShape(new Ammo.btVector3(
-		player.geometry.parameters.width*0.5
-		, player.geometry.parameters.height*0.5
-		, player.geometry.parameters.depth*0.5
-	));
-	let localInertia = new Ammo.btVector3(0, 0, 0);
-	colShape.calculateLocalInertia(mass, localInertia);
-	let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
-	let body = new Ammo.btRigidBody(rbInfo);
+	let body = player.rigidBody({physicsWorld: physicsWorld, rigidBodies: rigidBodies, mass: 1}); // construct rigidbody
 	body.setActivationState(4); // 4 prevents deactivation
-	body.setDamping(0.6, 0.6);
-	
-	physicsWorld.addRigidBody(body);
-	player.userData.physicsBody = body; // affected by physics
-	rigidBodies.push(player);
+	body.setDamping(0.6, 0.6); // general, angular
 }
 
 function updatePhysics(deltaTime){
