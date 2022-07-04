@@ -17,6 +17,21 @@ THREE.Quaternion.prototype.ammo = function() { // Quaternion conversion
 	return new Ammo.btQuaternion(this.x,this.y,this.z, this.w);
 };
 
+THREE.BoxBufferGeometry.prototype.ammoGeometry = function() {
+	return new Ammo.btBoxShape(new Ammo.btVector3(
+		this.parameters.width*0.5
+		, this.parameters.height*0.5
+		, this.parameters.depth*0.5
+	));
+};
+
+THREE.CylinderGeometry.prototype.ammoGeometry = function() {
+	return new Ammo.btCylinderShape(new Ammo.btVector3(
+		this.parameters.radiusTop
+		,this.parameters.height*0.5
+		,this.parameters.height*0.5 // not sure about this one
+	));
+};
 
 THREE.Mesh.prototype.rigidBody = function(settings) {
 	settings = settings || {}; // ensure settings not null
@@ -30,34 +45,21 @@ THREE.Mesh.prototype.rigidBody = function(settings) {
 	
 	colShape = new Ammo.btCompoundShape();
 	
-	if (this.geometry instanceof THREE.BoxBufferGeometry){
+	let ammoGeometry = this.geometry.ammoGeometry();
+	if (ammoGeometry) {
 		let childTransform = new Ammo.btTransform();
 		childTransform.setIdentity();
-		colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
-			this.geometry.parameters.width*0.5
-			, this.geometry.parameters.height*0.5
-			, this.geometry.parameters.depth*0.5
-		)));
+		colShape.addChildShape(childTransform, ammoGeometry);
 	}
 	
 	this.children.forEach(child=>{
-		let childTransform = new Ammo.btTransform();
-		childTransform.setIdentity();
-		childTransform.setOrigin(child.position.ammo());
-		childTransform.setRotation(child.quaternion.ammo());
-		if (child.geometry instanceof THREE.BoxBufferGeometry) {
-			colShape.addChildShape(childTransform, new Ammo.btBoxShape(new Ammo.btVector3(
-				child.geometry.parameters.width*0.5
-				, child.geometry.parameters.height*0.5
-				, child.geometry.parameters.depth*0.5
-			)));
-		} else if (child.geometry instanceof THREE.CylinderGeometry) {
-		// height, radiusTop, radiusBottom
-			colShape.addChildShape(childTransform, new Ammo.btCylinderShape(new Ammo.btVector3(
-				child.geometry.parameters.radiusTop
-				,child.geometry.parameters.height*0.5
-				,child.geometry.parameters.height*0.5// child.geometry.parameters.depth*0.5
-			)));
+		let ammoGeometry = child.geometry.ammoGeometry();
+		if (ammoGeometry) {
+			let childTransform = new Ammo.btTransform();
+			childTransform.setIdentity();
+			childTransform.setOrigin(child.position.ammo());
+			childTransform.setRotation(child.quaternion.ammo());
+			colShape.addChildShape(childTransform, ammoGeometry);
 		}
 	});
 	
