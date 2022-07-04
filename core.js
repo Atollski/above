@@ -42,23 +42,22 @@ function start () {
 	tmpTrans = new Ammo.btTransform();
 	setupPhysicsWorld();
 	setupGraphics();
-	heightData = generateHeight( terrainWidth, terrainDepth, terrainMinHeight, terrainMaxHeight );
 	createTerrain();
-//	createBlock();
-//	createOcean();
-//	
-//	createBlock2({x:3,y:7,z:1});
-//	createBlock2({x:6,y:7,z:-4});
-//	
-//	
-//	for (let y=0; y<20; y+=2) {
-//		for (let x=-20; x<20; x+=2) {
-//			createBlock2({x:x,y:y,z:-15});
-//		}	
-//	}
-
-//	initPhysics();
+	createOcean();
 	
+	for (let towerCount = 0; towerCount < 6; towerCount++) { // create a pillar of doom
+		let targetX = -120 + Math.floor(Math.random() * 240);
+		let targetZ = -15 - (Math.floor(Math.random() * 120));
+		createBlock({pos: {x:targetX, y:1, z:targetZ}, size: {x:10, y:2, z:10}}); // foundation
+		for (let z=targetZ - 3; z<= targetZ + 3; z+=2) {
+			for (let y=3; y<29; y+=2) {
+				for (let x=targetX - 3; x<=targetX + 3; x+=2) {
+					createBlock({pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
+				}	
+			}
+		}
+	}
+
 	createPlayer();
 	renderFrame();
 }
@@ -155,104 +154,64 @@ function renderFrame() {
 	}
 	
 	updatePhysics(deltaTime);
+	camera.lookAt(player.position); // follow the player position
 	renderer.render(scene, camera);
 	requestAnimationFrame(renderFrame);
 }
 
 function createTerrain() {
+	heightData = generateHeight( 100, 100, -2, 6); // example terrain
 	
-//	// build the geometry
-//	const terrainGeometry = new THREE.PlaneGeometry( 100, 100, 100, 100);
-//	terrainGeometry.rotateX( - Math.PI / 2 );
-//	const vertices = terrainGeometry.attributes.position.array;
-//	for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
-//		// j + 1 because it is the y component that we modify
-//		vertices[ j + 1 ] = Math.random() * 0.5;//heightData[ i ];
-//		if (Math.random() < 0.01)vertices[ j + 1 ] = 10;
-//	}
-//	terrainGeometry.computeVertexNormals();
-//	
-//	let terrain = new THREE.Mesh( terrainGeometry, new THREE.MeshPhongMaterial({color: 0x004000}));
-//		
-//	terrain.castShadow = true;
-//	terrain.receiveShadow = true;
-//	terrain.position.set(0,0,0);
-//	scene.add(terrain);
-	
-	
-	const geometry = new THREE.PlaneGeometry( terrainWidthExtents, terrainDepthExtents, terrainWidth - 1, terrainDepth - 1 );
+	// build the geometry
+	const geometry = new THREE.PlaneGeometry( 300, 300, 99, 99);
 	geometry.rotateX( - Math.PI / 2 );
 	const vertices = geometry.attributes.position.array;
 	for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
-		// j + 1 because it is the y component that we modify
-		vertices[ j + 1 ] = heightData[ i ];
+		vertices[ j + 1 ] = -1.5 + (Math.random() * 3); // random height map
+//		vertices[ j + 1 ] = heightData[ i ]; // use example height map
 	}
-
-	geometry.computeVertexNormals();
-	const groundMaterial = new THREE.MeshPhongMaterial( { color: 0xC7C7C7 } );
-	terrainMesh = new THREE.Mesh( geometry, groundMaterial );
-	terrainMesh.receiveShadow = true;
-	terrainMesh.castShadow = true;
-	scene.add( terrainMesh );
 	
-//	terrainMesh.rigidBody({physicsWorld: physicsWorld});
-	const groundShape = geometry.ammoGeometry();
-	const groundTransform = new Ammo.btTransform();
-	groundTransform.setIdentity();
-	// Shifts the terrain, since bullet re-centers it on its bounding box.
-	groundTransform.setOrigin( new Ammo.btVector3( 0, ( terrainMaxHeight + terrainMinHeight ) / 2, 0 ) );
-	const groundMass = 0;
-	const groundLocalInertia = new Ammo.btVector3( 0, 0, 0 );
-	const groundMotionState = new Ammo.btDefaultMotionState( groundTransform );
-	const groundBody = new Ammo.btRigidBody( new Ammo.btRigidBodyConstructionInfo( groundMass, groundMotionState, groundShape, groundLocalInertia ) );
-	physicsWorld.addRigidBody( groundBody );
-
+	geometry.computeVertexNormals();
+	
+	let terrain = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
+		
+	terrain.castShadow = true;
+	terrain.receiveShadow = true;
+	terrain.position.set(0,0,0);
+	scene.add(terrain);
+	terrain.rigidBody({physicsWorld: physicsWorld});
 }
 
 function createOcean() {
-	const oceanGeometry = new THREE.PlaneGeometry( 1000, 1000, 100, 100);
+	const oceanGeometry = new THREE.PlaneGeometry( 300, 300, 100, 100);
 	
 	let ocean = new THREE.Mesh( oceanGeometry, new THREE.MeshPhongMaterial({color: 0x0000ff}));
 	ocean.rotateX( - Math.PI / 2 );
 	ocean.material.transparent = true;
 	ocean.material.opacity = 0.5;
-	
-	ocean.position.set(0,4,0);
+	ocean.receiveShadow = true;
+	ocean.position.set(0,0,0);
 	scene.add(ocean);
 }
 
-function createBlock(){
-	let pos = {x: 0, y: 0, z: 0};
-	
-	//threeJS Section
-	let blockPlane = new THREE.Mesh(new THREE.BoxBufferGeometry(250,2,250), new THREE.MeshPhongMaterial({color: 0xa0afa4}));
-	blockPlane.position.set(pos.x, pos.y, pos.z);
+function createBlock(settings){
+	settings = Object.assign({pos: {x:0, y:0, z:0}, size: {x:1, y:1, z:1}, mass: 0, color: Math.floor((1<<24)*Math.random())}, settings);
+	let blockPlane = new THREE.Mesh(
+		new THREE.BoxBufferGeometry(settings.size.x,settings.size.y,settings.size.z)
+		,new THREE.MeshPhongMaterial({color: settings.color})
+	);
+	blockPlane.position.set(settings.pos.x, settings.pos.y, settings.pos.z);
 	blockPlane.scale.set(1, 1, 1);
 	blockPlane.castShadow = true;
 	blockPlane.receiveShadow = true;
 	scene.add(blockPlane);
-
-	let body = blockPlane.rigidBody({physicsWorld: physicsWorld});
-}
-
-function createBlock2(pos) {
-	//threeJS Section
-	let blockPlane = new THREE.Mesh(new THREE.BoxBufferGeometry(2,2,2), new THREE.MeshPhongMaterial({color: Math.floor((1<<24)*Math.random())}));
-	blockPlane.position.set(pos.x, pos.y, pos.z);
-	blockPlane.scale.set(1, 1, 1);
-	blockPlane.castShadow = true;
-	blockPlane.receiveShadow = true;
-	scene.add(blockPlane);
-
-	blockPlane.rigidBody({physicsWorld: physicsWorld, rigidBodies: rigidBodies, mass:0.05});
+	blockPlane.rigidBody({physicsWorld: physicsWorld, rigidBodies: rigidBodies, mass:settings.mass});
 }
 
 function createPlayer(){
-	let pos = {x: 0, y: 20, z: 0};
-	//let scale = {x: 2, y: 2, z: 2};
+	let pos = {x: 0, y: 6, z: 0};
 	let mass = 1;
 
-	//threeJS Section
 	player = new THREE.Mesh(new THREE.BoxBufferGeometry(4,2,7), new THREE.MeshPhongMaterial({color: 0xff0505}));
 	player.scale.set(1,1,1);
 	player.rotation.set(0.2,0,0.1);
@@ -316,7 +275,6 @@ function updatePhysics(deltaTime){
 // hackery
 
 function generateHeight( width, depth, minHeight, maxHeight ) {
-
 	// Generates the height data (a sinus wave)
 
 	const size = width * depth;
