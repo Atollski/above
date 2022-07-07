@@ -1,7 +1,7 @@
 /* global THREE, Ammo */
 
 //variable declaration section
-let physicsWorld, scene, camera, renderer, rigidBodies = [];
+let physicsWorld, scene, camera, renderer, dirlLight, rigidBodies = [];
 let keys = [];
 
 let player = null; // this will eventually get set up with the player object
@@ -45,13 +45,15 @@ function start () {
 	createTerrain();
 	createOcean();
 	
-	for (let towerCount = 0; towerCount < 6; towerCount++) { // create a pillar of doom
-		let targetX = -120 + Math.floor(Math.random() * 240);
-		let targetZ = -15 - (Math.floor(Math.random() * 120));
+	for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
+		let angle = Math.random() * Math.PI * 2;
+		let distance = 15 + Math.random() * 120;
+		let targetX = distance * Math.sin(angle);
+		let targetZ = distance * Math.cos(angle);
 		createBlock({pos: {x:targetX, y:1, z:targetZ}, size: {x:10, y:2, z:10}}); // foundation
-		for (let z=targetZ - 3; z<= targetZ + 3; z+=2) {
-			for (let y=3; y<29; y+=2) {
-				for (let x=targetX - 3; x<=targetX + 3; x+=2) {
+		for (let z=targetZ - 2; z<= targetZ + 2; z+=2) {
+			for (let y=3; y<19; y+=2) {
+				for (let x=targetX - 2; x<=targetX + 2; x+=2) {
 					createBlock({pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
 				}	
 			}
@@ -81,36 +83,35 @@ function setupGraphics(){
 
 	//create camera
 	camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 5000);
-	camera.position.set(0, 30, 70);
+	camera.position.set(0, 50, 70);
 	camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 	//Add hemisphere light
-	let hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.1 );
-	hemiLight.color.setHSL( 0.6, 0.6, 0.6 );
-	hemiLight.groundColor.setHSL( 0.1, 1, 0.4 );
-	hemiLight.position.set( 0, 50, 0 );
-	scene.add( hemiLight );
+//	let hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.1 );
+//	hemiLight.color.setHSL( 0.6, 0.6, 0.6 );
+//	hemiLight.groundColor.setHSL( 0.1, 1, 0.4 );
+//	hemiLight.position.set( 0, 50, 0 );
+//	scene.add( hemiLight );
 
 	//Add directional light
-	let dirLight = new THREE.DirectionalLight( 0xffffff , 1);
+	dirLight = new THREE.DirectionalLight( 0xffffff , 1);
 	dirLight.color.setHSL(0.1, 1, 0.95);
-	dirLight.position.set(-1, 1.75, 1);
-	dirLight.position.multiplyScalar(100);
+//	dirLight.position.multiplyScalar(500);
 	scene.add(dirLight);
 
 	dirLight.castShadow = true;
 	dirLight.shadow.mapSize.width = 2048;
 	dirLight.shadow.mapSize.height = 2048;
 
-	let d = 50;
+	let d = 150;
 	dirLight.shadow.camera.left = -d;
 	dirLight.shadow.camera.right = d;
 	dirLight.shadow.camera.top = d;
 	dirLight.shadow.camera.bottom = -d;
-	dirLight.shadow.camera.far = 13500;
+	dirLight.shadow.camera.far = 1000;
 
 	//Setup the renderer
-	renderer = new THREE.WebGLRenderer({antialias: true});
+	renderer = new THREE.WebGLRenderer({antialias: false});
 	renderer.setClearColor(0xbfd1e5);
 	renderer.setPixelRatio(window.devicePixelRatio);
 	renderer.setSize(window.innerWidth, window.innerHeight);
@@ -154,21 +155,23 @@ function renderFrame() {
 	}
 	
 	updatePhysics(deltaTime);
+	camera.position.set(player.position.x, camera.position.y, player.position.z + 70);
 	camera.lookAt(player.position); // follow the player position
+	dirLight.position.set(player.position.x-30, player.position.y+100, player.position.z+60);
 	renderer.render(scene, camera);
 	requestAnimationFrame(renderFrame);
 }
 
 function createTerrain() {
-	heightData = generateHeight( 100, 100, -2, 6); // example terrain
+	heightData = generateHeight( 100, 100, -7, 2); // example terrain
 	
 	// build the geometry
 	const geometry = new THREE.PlaneGeometry( 300, 300, 99, 99);
 	geometry.rotateX( - Math.PI / 2 );
 	const vertices = geometry.attributes.position.array;
 	for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
-		vertices[ j + 1 ] = -1.5 + (Math.random() * 3); // random height map
-//		vertices[ j + 1 ] = heightData[ i ]; // use example height map
+//		vertices[ j + 1 ] = -1.5 + (Math.random() * 3); // random height map
+		vertices[ j + 1 ] = heightData[ i ]; // use example height map
 	}
 	
 	geometry.computeVertexNormals();
@@ -244,6 +247,9 @@ function createPlayer(){
 		engine.receiveShadow = true;
 		player.add(engine);
 	});
+	
+	// have the light point at the player
+	dirLight.target = player;
 	
 	scene.add(player);
 
