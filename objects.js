@@ -1,6 +1,17 @@
 /* global THREE, Ammo */
-export class Player extends THREE.Mesh {
+import {DefaultFlightController} from './controller.js';
+
+class Engine extends THREE.Mesh {
 	constructor(settings) {
+		super(new THREE.CylinderGeometry(1,1,1,10,1), new THREE.MeshPhongMaterial({color: 0x999999}));
+		this.position.set(settings.pos.x, settings.pos.y, settings.pos.z);
+		this.castShadow = true;
+		this.receiveShadow = true;
+	}
+}
+
+export class TestAircraft extends THREE.Mesh { // test aircraft
+	constructor(world, settings) {
 		super(new THREE.BoxBufferGeometry(4,2,7), new THREE.MeshPhongMaterial({color: 0xff0505}));
 		
 		settings = Object.assign (
@@ -29,34 +40,22 @@ export class Player extends THREE.Mesh {
 		this.add(cockpit);
 
 		// CylinderGeometry(radiusTop : Float, radiusBottom : Float, height : Float, radialSegments : Integer, heightSegments : Integer, openEnded : Boolean, thetaStart : Float, thetaLength : Float)
-		let engines = [
-			{x:2, y: 0.8, z:2}
-			,{x:-2, y: 0.8, z:2}
-			,{x:2, y: 0.8, z:-2}
-			,{x:-2, y: 0.8, z:-2}
-		];
-		engines.forEach(enginePos=>{
-			let engine = new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,10,1), new THREE.MeshPhongMaterial({color: 0x999999}));
-			engine.position.set(enginePos.x, enginePos.y, enginePos.z);
-			engine.castShadow = true;
-			engine.receiveShadow = true;
-			this.add(engine);
-		});
+		this.add(new Engine({pos:{x:2, y: 0.8, z:2}}));
+		this.add(new Engine({pos:{x:-2, y: 0.8, z:2}}));
+		this.add(new Engine({pos:{x:2, y: 0.8, z:-2}}));
+		this.add(new Engine({pos:{x:-2, y: 0.8, z:-2}}));
 
-		// have the light point at the player
-		settings.world.dirLight.target = this;
-
-		settings.world.scene.add(this);
+		world.scene.add(this);
 
 		//Ammojs Section
-		let body = this.rigidBody({physicsWorld: settings.world.physicsWorld, rigidBodies: settings.world.rigidBodies, mass: settings.mass}); // construct rigidbody
-		body.setActivationState(4); // 4 prevents deactivation
+		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: settings.mass}); // construct rigidbody
+
 		body.setDamping(0.6, 0.6); // general, angular
 	}
 }
 
 export class Block extends THREE.Mesh {
-	constructor(settings){
+	constructor(world, settings){
 		settings = Object.assign({pos: {x:0, y:0, z:0}, size: {x:1, y:1, z:1}, mass: 0, color: Math.floor((1<<24)*Math.random())}, settings);
 		super( // basic shaded box
 			new THREE.BoxBufferGeometry(settings.size.x,settings.size.y,settings.size.z)
@@ -66,13 +65,13 @@ export class Block extends THREE.Mesh {
 		this.scale.set(1, 1, 1);
 		this.castShadow = true;
 		this.receiveShadow = true;
-		settings.world.scene.add(this);
-		this.rigidBody({physicsWorld: settings.world.physicsWorld, rigidBodies: settings.world.rigidBodies, mass:settings.mass});
+		world.scene.add(this);
+		this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass:settings.mass});
 	}
 }
 
 export class Terrain extends THREE.Mesh {
-	constructor(settings) {
+	constructor(world, settings) {
 		let heightData = generateHeight( 100, 100, -7, 2); // example terrain
 
 		// build the geometry
@@ -91,13 +90,13 @@ export class Terrain extends THREE.Mesh {
 		this.castShadow = true;
 		this.receiveShadow = true;
 		this.position.set(0,0,0);
-		settings.world.scene.add(this);
-		this.rigidBody({physicsWorld: settings.world.physicsWorld});
+		world.scene.add(this);
+		this.rigidBody({physicsWorld: world.physicsWorld});
 	}
 }
 
 export class Ocean extends THREE.Mesh {
-	constructor(settings) {
+	constructor(world, settings) {
 		const geometry = new THREE.PlaneGeometry( 300, 300, 100, 100);
 		super(geometry, new THREE.MeshPhongMaterial({color: 0x0000ff}));
 		this.rotateX( - Math.PI / 2 );
@@ -105,7 +104,7 @@ export class Ocean extends THREE.Mesh {
 		this.material.opacity = 0.5;
 		this.receiveShadow = true;
 		this.position.set(0,0,0);
-		settings.world.scene.add(this);
+		world.scene.add(this);
 	}
 }
 

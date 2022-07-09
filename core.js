@@ -1,66 +1,41 @@
 /* global THREE, Ammo, Player */
-import {Player, Block, Terrain, Ocean} from './objects.js';
+import {TestAircraft, Block, Terrain, Ocean} from './objects.js';
+import {DefaultFlightController} from './controller.js';
 
 //variable declaration section
-let world = {scene: null, camera: null, render: null, dirLight: null, worldTransform: null, physicsWorld: null, rigidBodies: [], clock:null};
+let world = {scene: null, camera: null, render: null, dirLight: null, worldTransform: null, physicsWorld: null, rigidBodies: [], controllers: [], clock:null};
 let keys = [];
+let playerController = null;
 
-let player = null; // this will eventually get set up with the player object
+window.addEventListener('contextmenu', event => event.preventDefault()); // disable right click
 
 //Ammojs Initialization
 Ammo().then(start);
-
-// monitor input events for 
-// monitor key press
-window.addEventListener("keydown", event=>{keys[event.keyCode] = 1;});
-//window.addEventListener("keydown", event=>{console.log(event.keyCode);});
-window.addEventListener("keyup", event=>{keys[event.keyCode] = 0;});
-window.addEventListener("wheel", event=>{
-	if (player) {
-		player.impulse = player.impulse || new THREE.Vector3();
-		player.impulse.y = Math.max(player.impulse.y - event.deltaY*0.1, 0); // y scrolling controls vertical impulse - cannot go below 0
-		// torque impulse relative to the player orientation (mainly pitch and roll)
-		player.torqueImpulse = player.torqueImpulse || new THREE.Vector3();
-		player.torqueImpulse.z -= event.deltaX*0.5; // roll applied via mouse wheel x scrolling
-	}
-});
-window.addEventListener("mousemove", event=>{
-	if (player) {
-		// player rotation around the Y axis (yaw) should not factor in the orientation of the player and remain in line with the horizon
-		player.horizonTorqueImpulse = player.horizonTorqueImpulse || new THREE.Vector3();
-		// torque impulse relative to the player orientation (mainly pitch and roll)
-		player.torqueImpulse = player.torqueImpulse || new THREE.Vector3();
-
-		// just add forces in for now
-		player.horizonTorqueImpulse.y -= event.movementX * 2.0;
-		player.torqueImpulse.x += event.movementY * 2.0;
-	}
-});
-window.addEventListener('contextmenu', event => event.preventDefault()); // disable right click
 
 function start () {
 	world.worldTransform = new Ammo.btTransform();
 	setupPhysicsWorld();
 	setupGraphics();
-	new Terrain({world: world});
-	new Ocean({world: world});
+	new Terrain(world);
+	new Ocean(world);
 	
 	for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
 		let angle = Math.random() * Math.PI * 2;
 		let distance = 15 + Math.random() * 120;
 		let targetX = distance * Math.sin(angle);
 		let targetZ = distance * Math.cos(angle);
-		new Block({world: world, pos: {x:targetX, y:1, z:targetZ}, size: {x:10, y:2, z:10}}); // foundation
-		for (let z=targetZ - 2; z<= targetZ + 2; z+=2) {
+		new Block(world, {pos: {x:targetX, y:-2, z:targetZ}, size: {x:10, y:8, z:10}}); // foundation ending at +2
+		for (let z=targetZ - 2; z< targetZ + 2.01; z+=2) {
 			for (let y=3; y<19; y+=2) {
-				for (let x=targetX - 2; x<=targetX + 2; x+=2) {
-					new Block({world: world, pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
+				for (let x=targetX - 2; x<targetX + 2.01; x+=2) {
+					new Block(world, {pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
 				}	
 			}
 		}
 	}
 
-	player = new Player({world: world});
+	// attach flight controller
+	playerController = new DefaultFlightController(world, new TestAircraft(world));
 	renderFrame();
 }
 
@@ -125,37 +100,19 @@ function renderFrame() {
 
 	// handle forces here
 
-	if (player.impulse) {
-		let impulse = player.impulse.clone();
-		impulse.multiplyScalar(deltaTime);
-		impulse.applyQuaternion(player.quaternion); // convert impulse to relative to player orientation
-		player.userData.physicsBody.applyCentralImpulse(impulse.ammo());
-	}
-	
-	if (player.horizonTorqueImpulse) {
-		let horizonTorqueImpulse = player.horizonTorqueImpulse.clone();
-		horizonTorqueImpulse.multiplyScalar(deltaTime);
-		player.userData.physicsBody.applyTorqueImpulse(horizonTorqueImpulse.ammo());
-		player.horizonTorqueImpulse.multiplyScalar(0); // remove input force
-	}
-	
-	if (player.torqueImpulse) {
-		// before applying torque impulse, calculate roll relative to horizon and correct for it to stabilize the aircraft
-		let euler = new THREE.Euler().setFromQuaternion(player.quaternion, "YXZ"); // euler order important here since I want to process purely the Z rotation
-		player.torqueImpulse.z -= euler.z * 5.0; // firstly, attempt to stabilise any roll around Z axis
-		player.torqueImpulse.x -= euler.x * 4 * Math.max(0,Math.abs(euler.x)-(Math.PI / 4)); // ±45° dead zone
-		
-		let torqueImpulse = player.torqueImpulse.clone();
-		torqueImpulse.multiplyScalar(deltaTime);
-		torqueImpulse.applyQuaternion(player.quaternion);
-		player.userData.physicsBody.applyTorqueImpulse(torqueImpulse.ammo());
-		player.torqueImpulse.multiplyScalar(0); // remove input force
-	}
+	world.controllers.forEach(controller=>{
+		controller.process(deltaTime);
+	});
 	
 	updatePhysics(deltaTime);
-	world.camera.position.set(player.position.x, world.camera.position.y, player.position.z + 70); // maintain height
-	world.camera.lookAt(player.position); // follow the player position
-	world.dirLight.position.set(player.position.x-30, player.position.y+100, player.position.z+60);
+	world.camera.position.set(playerController.vehicle.position.x, world.camera.position.y, playerController.vehicle.position.z + 70); // maintain height
+	world.camera.lookAt(playerController.vehicle.position); // follow the player position
+	
+	
+	// have the light point at the player
+	world.dirLight.target = playerController.vehicle;
+	world.dirLight.position.set(playerController.vehicle.position.x-30, playerController.vehicle.position.y+100, playerController.vehicle.position.z+60);
+	
 	world.renderer.render(world.scene, world.camera);
 	requestAnimationFrame(renderFrame);
 }
