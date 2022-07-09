@@ -1,7 +1,8 @@
-/* global THREE, Ammo */
+/* global THREE, Ammo, Player */
+import {Player, Block, Terrain, Ocean} from './objects.js';
 
 //variable declaration section
-let physicsWorld, scene, camera, renderer, dirlLight, rigidBodies = [];
+let world = {scene: null, camera: null, render: null, dirLight: null, worldTransform: null, physicsWorld: null, rigidBodies: [], clock:null};
 let keys = [];
 
 let player = null; // this will eventually get set up with the player object
@@ -35,32 +36,31 @@ window.addEventListener("mousemove", event=>{
 		player.torqueImpulse.x += event.movementY * 2.0;
 	}
 });
-
 window.addEventListener('contextmenu', event => event.preventDefault()); // disable right click
 
 function start () {
-	tmpTrans = new Ammo.btTransform();
+	world.worldTransform = new Ammo.btTransform();
 	setupPhysicsWorld();
 	setupGraphics();
-	createTerrain();
-	createOcean();
+	new Terrain({world: world});
+	new Ocean({world: world});
 	
 	for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
 		let angle = Math.random() * Math.PI * 2;
 		let distance = 15 + Math.random() * 120;
 		let targetX = distance * Math.sin(angle);
 		let targetZ = distance * Math.cos(angle);
-		createBlock({pos: {x:targetX, y:1, z:targetZ}, size: {x:10, y:2, z:10}}); // foundation
+		new Block({world: world, pos: {x:targetX, y:1, z:targetZ}, size: {x:10, y:2, z:10}}); // foundation
 		for (let z=targetZ - 2; z<= targetZ + 2; z+=2) {
 			for (let y=3; y<19; y+=2) {
 				for (let x=targetX - 2; x<=targetX + 2; x+=2) {
-					createBlock({pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
+					new Block({world: world, pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
 				}	
 			}
 		}
 	}
 
-	createPlayer();
+	player = new Player({world: world});
 	renderFrame();
 }
 
@@ -69,61 +69,59 @@ function setupPhysicsWorld() {
 	let dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
 	let overlappingPairCache = new Ammo.btDbvtBroadphase();
 	let solver = new Ammo.btSequentialImpulseConstraintSolver();
-	physicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
-	physicsWorld.setGravity(new Ammo.btVector3(0, -10, 0));
+	world.physicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
+	world.physicsWorld.setGravity(new Ammo.btVector3(0, -10, 0));
 }
 
 function setupGraphics(){
 	//create clock for timing
-	clock = new THREE.Clock();
+	world.clock = new THREE.Clock();
 
 	//create the scene
-	scene = new THREE.Scene();
-	scene.background = new THREE.Color(0xbfd1e5);
+	world.scene = new THREE.Scene();
+	world.scene.background = new THREE.Color(0xbfd1e5);
 
 	//create camera
-	camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 5000);
-	camera.position.set(0, 50, 70);
-	camera.lookAt(new THREE.Vector3(0, 0, 0));
+	world.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 5000);
+	world.camera.position.set(0, 50, 70);
+	world.camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-	//Add hemisphere light
-//	let hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.1 );
-//	hemiLight.color.setHSL( 0.6, 0.6, 0.6 );
-//	hemiLight.groundColor.setHSL( 0.1, 1, 0.4 );
-//	hemiLight.position.set( 0, 50, 0 );
-//	scene.add( hemiLight );
+	//Add directional light. It follows the player so shadows are always effective
+	world.dirLight = new THREE.DirectionalLight( 0xffffff , 1);
+	world.dirLight.color.setHSL(0.1, 1, 0.95);
+	world.scene.add(world.dirLight);
 
-	//Add directional light
-	dirLight = new THREE.DirectionalLight( 0xffffff , 1);
-	dirLight.color.setHSL(0.1, 1, 0.95);
-//	dirLight.position.multiplyScalar(500);
-	scene.add(dirLight);
-
-	dirLight.castShadow = true;
-	dirLight.shadow.mapSize.width = 2048;
-	dirLight.shadow.mapSize.height = 2048;
+	world.dirLight.castShadow = true;
+	world.dirLight.shadow.mapSize.width = 2048;
+	world.dirLight.shadow.mapSize.height = 2048;
 
 	let d = 150;
-	dirLight.shadow.camera.left = -d;
-	dirLight.shadow.camera.right = d;
-	dirLight.shadow.camera.top = d;
-	dirLight.shadow.camera.bottom = -d;
-	dirLight.shadow.camera.far = 1000;
+	world.dirLight.shadow.camera.left = -d;
+	world.dirLight.shadow.camera.right = d;
+	world.dirLight.shadow.camera.top = d;
+	world.dirLight.shadow.camera.bottom = -d;
+	world.dirLight.shadow.camera.far = 1000;
 
 	//Setup the renderer
-	renderer = new THREE.WebGLRenderer({antialias: false});
-	renderer.setClearColor(0xbfd1e5);
-	renderer.setPixelRatio(window.devicePixelRatio);
-	renderer.setSize(window.innerWidth, window.innerHeight);
-	document.body.appendChild(renderer.domElement);
-	renderer.gammaInput = true;
-	renderer.gammaOutput = true;
-	renderer.shadowMap.enabled = true;
-	renderer.domElement.onclick = () => {renderer.domElement.requestPointerLock();}; // lock pointer to world
+	world.renderer = new THREE.WebGLRenderer({antialias: false});
+	world.renderer.setClearColor(0xbfd1e5);
+	world.renderer.setPixelRatio(window.devicePixelRatio);
+	world.renderer.setSize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(world.renderer.domElement);
+	world.renderer.gammaInput = true;
+	world.renderer.gammaOutput = true;
+	world.renderer.shadowMap.enabled = true;
+	world.renderer.domElement.onmousedown = event => {
+		if (document.pointerLockElement === null) {
+			world.renderer.domElement.requestPointerLock();
+		} else {
+//			console.log(event.button);
+		}
+	}; // lock pointer to world
 }
 
 function renderFrame() {
-	let deltaTime = clock.getDelta();
+	let deltaTime = world.clock.getDelta();
 
 	// handle forces here
 
@@ -155,162 +153,28 @@ function renderFrame() {
 	}
 	
 	updatePhysics(deltaTime);
-	camera.position.set(player.position.x, camera.position.y, player.position.z + 70);
-	camera.lookAt(player.position); // follow the player position
-	dirLight.position.set(player.position.x-30, player.position.y+100, player.position.z+60);
-	renderer.render(scene, camera);
+	world.camera.position.set(player.position.x, world.camera.position.y, player.position.z + 70); // maintain height
+	world.camera.lookAt(player.position); // follow the player position
+	world.dirLight.position.set(player.position.x-30, player.position.y+100, player.position.z+60);
+	world.renderer.render(world.scene, world.camera);
 	requestAnimationFrame(renderFrame);
-}
-
-function createTerrain() {
-	heightData = generateHeight( 100, 100, -7, 2); // example terrain
-	
-	// build the geometry
-	const geometry = new THREE.PlaneGeometry( 300, 300, 99, 99);
-	geometry.rotateX( - Math.PI / 2 );
-	const vertices = geometry.attributes.position.array;
-	for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
-//		vertices[ j + 1 ] = -1.5 + (Math.random() * 3); // random height map
-		vertices[ j + 1 ] = heightData[ i ]; // use example height map
-	}
-	
-	geometry.computeVertexNormals();
-	
-	let terrain = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
-		
-	terrain.castShadow = true;
-	terrain.receiveShadow = true;
-	terrain.position.set(0,0,0);
-	scene.add(terrain);
-	terrain.rigidBody({physicsWorld: physicsWorld});
-}
-
-function createOcean() {
-	const oceanGeometry = new THREE.PlaneGeometry( 300, 300, 100, 100);
-	
-	let ocean = new THREE.Mesh( oceanGeometry, new THREE.MeshPhongMaterial({color: 0x0000ff}));
-	ocean.rotateX( - Math.PI / 2 );
-	ocean.material.transparent = true;
-	ocean.material.opacity = 0.5;
-	ocean.receiveShadow = true;
-	ocean.position.set(0,0,0);
-	scene.add(ocean);
-}
-
-function createBlock(settings){
-	settings = Object.assign({pos: {x:0, y:0, z:0}, size: {x:1, y:1, z:1}, mass: 0, color: Math.floor((1<<24)*Math.random())}, settings);
-	let blockPlane = new THREE.Mesh(
-		new THREE.BoxBufferGeometry(settings.size.x,settings.size.y,settings.size.z)
-		,new THREE.MeshPhongMaterial({color: settings.color})
-	);
-	blockPlane.position.set(settings.pos.x, settings.pos.y, settings.pos.z);
-	blockPlane.scale.set(1, 1, 1);
-	blockPlane.castShadow = true;
-	blockPlane.receiveShadow = true;
-	scene.add(blockPlane);
-	blockPlane.rigidBody({physicsWorld: physicsWorld, rigidBodies: rigidBodies, mass:settings.mass});
-}
-
-function createPlayer(){
-	let pos = {x: 0, y: 6, z: 0};
-	let mass = 1;
-
-	player = new THREE.Mesh(new THREE.BoxBufferGeometry(4,2,7), new THREE.MeshPhongMaterial({color: 0xff0505}));
-	player.scale.set(1,1,1);
-	player.rotation.set(0.2,0,0.1);
-	player.position.set(pos.x, pos.y, pos.z);
-	player.castShadow = true;
-	player.receiveShadow = true;
-	
-	let cockpit = new THREE.Mesh(new THREE.BoxBufferGeometry(2,1.5,3), new THREE.MeshPhongMaterial({color: 0x0000ff}));
-	cockpit.material.transparent = true;
-	cockpit.material.opacity = 0.5;
-	cockpit.scale.set(1,1,1);
-	cockpit.position.set(
-		0//(player.geometry.parameters.width*0.5) - (cockpit.geometry.parameters.width*0.5)
-		,(player.geometry.parameters.height*0.5) - (cockpit.geometry.parameters.height*0.5) + 0.2
-		,(cockpit.geometry.parameters.depth*0.5) - (player.geometry.parameters.depth*0.5) - 1
-	);
-	player.add(cockpit);
-	
-	// CylinderGeometry(radiusTop : Float, radiusBottom : Float, height : Float, radialSegments : Integer, heightSegments : Integer, openEnded : Boolean, thetaStart : Float, thetaLength : Float)
-	let engines = [
-		{x:2, y: 0.8, z:2}
-		,{x:-2, y: 0.8, z:2}
-		,{x:2, y: 0.8, z:-2}
-		,{x:-2, y: 0.8, z:-2}
-	];
-	engines.forEach(enginePos=>{
-		let engine = new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,10,1), new THREE.MeshPhongMaterial({color: 0x999999}));
-		engine.position.set(enginePos.x, enginePos.y, enginePos.z);
-		engine.castShadow = true;
-		engine.receiveShadow = true;
-		player.add(engine);
-	});
-	
-	// have the light point at the player
-	dirLight.target = player;
-	
-	scene.add(player);
-
-	//Ammojs Section
-	let body = player.rigidBody({physicsWorld: physicsWorld, rigidBodies: rigidBodies, mass: 1}); // construct rigidbody
-	body.setActivationState(4); // 4 prevents deactivation
-	body.setDamping(0.6, 0.6); // general, angular
 }
 
 function updatePhysics(deltaTime){
 	// Step world
-	physicsWorld.stepSimulation(deltaTime, 10);
+	world.physicsWorld.stepSimulation(deltaTime, 10);
 
 	// Update rigid bodies
-	for (let i = 0; i < rigidBodies.length; i++) {
-		let objThree = rigidBodies[ i ];
+	for (let i = 0; i < world.rigidBodies.length; i++) {
+		let objThree = world.rigidBodies[ i ];
 		let objAmmo = objThree.userData.physicsBody;
-		let ms = objAmmo.getMotionState();
-		if (ms) {
-			ms.getWorldTransform(tmpTrans);
-			let p = tmpTrans.getOrigin();
-			let q = tmpTrans.getRotation();
-			objThree.position.set( p.x(), p.y(), p.z() );
-			objThree.quaternion.set(q.x(), q.y(), q.z(), q.w());
+		let motionState = objAmmo.getMotionState();
+		if (motionState) {
+			motionState.getWorldTransform(world.worldTransform);
+			let pos = world.worldTransform.getOrigin();
+			let rot = world.worldTransform.getRotation();
+			objThree.position.set( pos.x(), pos.y(), pos.z() );
+			objThree.quaternion.set(rot.x(), rot.y(), rot.z(), rot.w());
 		}
 	}
-}
-
-// hackery
-
-function generateHeight( width, depth, minHeight, maxHeight ) {
-	// Generates the height data (a sinus wave)
-
-	const size = width * depth;
-	const data = new Float32Array( size );
-
-	const hRange = maxHeight - minHeight;
-	const w2 = width / 2;
-	const d2 = depth / 2;
-	const phaseMult = 12;
-
-	let p = 0;
-
-	for ( let j = 0; j < depth; j ++ ) {
-
-		for ( let i = 0; i < width; i ++ ) {
-
-			const radius = Math.sqrt(
-				Math.pow( ( i - w2 ) / w2, 2.0 ) +
-					Math.pow( ( j - d2 ) / d2, 2.0 ) );
-
-			const height = ( Math.sin( radius * phaseMult ) + 1 ) * 0.5 * hRange + minHeight;
-
-			data[ p ] = height;
-
-			p ++;
-
-		}
-
-	}
-
-	return data;
-
 }

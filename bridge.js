@@ -8,7 +8,6 @@ THREE.Vector3.prototype.ammo = function() { // Vector conversion
 	return new Ammo.btVector3(this.x,this.y,this.z);
 };
 
-
 /**
  * Convert a THREE quaternion to Ammo
  * @returns {Ammo.btQuaternion} Ammo equivalent of a THREE quaternion
