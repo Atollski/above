@@ -3,7 +3,11 @@ import {TestAircraft, Block, Terrain, Ocean} from './objects.js';
 import {DefaultFlightController} from './controller.js';
 
 //variable declaration section
-let world = {scene: null, camera: null, render: null, dirLight: null, worldTransform: null, physicsWorld: null, rigidBodies: [], controllers: [], clock:null};
+let world = {
+	scene: null, camera: null, render: null, dirLight: null, worldTransform: null, clock: null // graphhics 
+	, physicsWorld: null, rigidBodies: [] // physics
+	, controllers: [], controllableVehicles: [], systems: [] //game
+};
 let keys = [];
 let playerController = null;
 
@@ -16,6 +20,7 @@ function start () {
 	world.worldTransform = new Ammo.btTransform();
 	setupPhysicsWorld();
 	setupGraphics();
+	
 	new Terrain(world);
 	new Ocean(world);
 	
@@ -34,8 +39,12 @@ function start () {
 		}
 	}
 
+	world.controllableVehicles.push(new TestAircraft(world));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: 6, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 10, y: 6, z: 0}}));
+
 	// attach flight controller
-	playerController = new DefaultFlightController(world, new TestAircraft(world));
+	playerController = new DefaultFlightController(world, world.controllableVehicles[0]);
 	renderFrame();
 }
 
@@ -86,13 +95,6 @@ function setupGraphics(){
 	world.renderer.gammaInput = true;
 	world.renderer.gammaOutput = true;
 	world.renderer.shadowMap.enabled = true;
-	world.renderer.domElement.onmousedown = event => {
-		if (document.pointerLockElement === null) {
-			world.renderer.domElement.requestPointerLock();
-		} else {
-//			console.log(event.button);
-		}
-	}; // lock pointer to world
 }
 
 function renderFrame() {
@@ -100,9 +102,8 @@ function renderFrame() {
 
 	// handle forces here
 
-	world.controllers.forEach(controller=>{
-		controller.process(deltaTime);
-	});
+	world.controllers.forEach(controller=>controller.process(deltaTime));
+	world.systems.forEach(system=>system.process(deltaTime, world));
 	
 	updatePhysics(deltaTime);
 	world.camera.position.set(playerController.vehicle.position.x, world.camera.position.y, playerController.vehicle.position.z + 70); // maintain height
