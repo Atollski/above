@@ -11,8 +11,43 @@ class Engine extends THREE.Mesh {
 }
 
 class Rocket extends THREE.Mesh {
+	fuel = 4; // seconds of flight
 	constructor(world, settings) {
+		super(new THREE.CylinderGeometry(0.1,0.1,1.5,6,1), new THREE.MeshPhongMaterial({color: 0x999999}));
+		settings = Object.assign (
+			{
+				pos: {x:0, y:-1, z:0}
+				, mass: 1
+				, color: 0x101022
+			}, settings
+		);
+		this.scale.set(1,1,1);
+		this.position.set(settings.pos.x, settings.pos.y, settings.pos.z);
+		if (settings.quaternion) {
+			this.setRotationFromQuaternion(settings.quaternion);
+		}
+		
+		// collision group 4, avoid collision with aircraft collision group 2
+		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: settings.mass}, 4, 5); // construct rigidbody
+		
+		let force = new THREE.Vector3(0,-20,0); // shouldn't be on the Y axis, should be +100 Z
+		
+		force.applyQuaternion(this.quaternion); // convert impulse to relative to player orientation
+		body.applyCentralImpulse(force.ammo());
+
+		body.setDamping(0.6, 0.6); // general, angular
+		world.systems.push(this);// this rocket has ongoing propulsion
 		world.scene.add(this);
+	}
+	
+	process(delta, world) {
+		this.fuel -= delta;
+		if (this.fuel > 0) { // rocket can only fly so far!
+			let impulse = new THREE.Vector3(0,-40,0); // shouldn't be on the Y axis, should be +100 Z
+			impulse.multiplyScalar(delta);
+			impulse.applyQuaternion(this.quaternion); // convert impulse to relative to player orientation
+			this.userData.physicsBody.applyCentralImpulse(impulse.ammo());
+		}
 	}
 }
 
@@ -39,8 +74,13 @@ class RocketPod extends THREE.Mesh {
 	}
 	
 	process(delta, world) {
-		if (this.active && cooldown <= 0) {
-			new Rocket(world, {pos: this.position});
+		if (this.cooldown > 0) this.cooldown -= delta;
+		if (this.active && this.cooldown <= 0) {
+			new Rocket(world, {
+				pos: this.getWorldPosition(new THREE.Vector3(0,0,0))
+				,quaternion: this.getWorldQuaternion(new THREE.Quaternion(0,0,0,0))
+			});
+			this.cooldown = 0.2; // what is the unit...?
 		}
 	}
 }
@@ -114,7 +154,7 @@ export class TestAircraft extends Aircraft { // test aircraft
 		world.scene.add(this);
 
 		//Ammojs Section
-		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}); // construct rigidbody
+		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}, 2); // construct rigidbody - collision group 2 for aircraft
 
 		body.setDamping(0.6, 0.6); // general, angular
 	}
@@ -157,7 +197,7 @@ export class Terrain extends THREE.Mesh {
 		this.receiveShadow = true;
 		this.position.set(0,0,0);
 		world.scene.add(this);
-		this.rigidBody({physicsWorld: world.physicsWorld});
+		this.rigidBody({physicsWorld: world.physicsWorld}, 1); // collision group 1 represents terrain
 	}
 }
 

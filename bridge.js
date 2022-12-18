@@ -78,7 +78,7 @@ THREE.PlaneGeometry.prototype.ammoGeometry = function() {
 	return heightFieldShape;
 };
 
-THREE.Mesh.prototype.rigidBody = function(settings) {
+THREE.Mesh.prototype.rigidBody = function(settings, collisionGroup, collisionMask) {
 	settings = settings || {}; // ensure settings not null
 	
 	let transform = new Ammo.btTransform();
@@ -114,7 +114,7 @@ THREE.Mesh.prototype.rigidBody = function(settings) {
 	
 	let rigidBody = new Ammo.btRigidBody(rbInfo);
 	
-	if (settings.physicsWorld) settings.physicsWorld.addRigidBody(rigidBody);
+	if (settings.physicsWorld) settings.physicsWorld.addRigidBody(rigidBody, collisionGroup || 65535, collisionMask || 65535);
 	if (settings.rigidBodies) { // add this thing to the rigid bodies list
 		this.userData.physicsBody = rigidBody; // affected by physics
 		settings.rigidBodies.push(this);
