@@ -1,10 +1,17 @@
 /* global THREE, Ammo, Player */
-import {TestAircraft, Block, Terrain, Ocean} from './objects.js';
+import {TestAircraft, Block} from './objects.js';
+import {Terrain, Ocean} from './worldgen.js';
 import {DefaultFlightController} from './controller.js';
+//import {SeededRandom} from './random.js';
+
+/** CURRENTLY WORKING ON ***
+ * Smoke effects
+ * Random terrain
+ */
 
 //variable declaration section
 let world = {
-	scene: null, camera: null, render: null, dirLight: null, worldTransform: null, clock: null // graphhics 
+	scene: null, camera: null, render: null, dirLight: null, worldTransform: null, clock: null // graphics 
 	, physicsWorld: null, rigidBodies: [] // physics
 	, controllers: [], controllableVehicles: [], systems: [] //game
 };
@@ -122,9 +129,9 @@ function updatePhysics(deltaTime){
 	// Step world
 	world.physicsWorld.stepSimulation(deltaTime, 10);
 
-	// Update rigid bodies
-	for (let i = 0; i < world.rigidBodies.length; i++) {
-		let objThree = world.rigidBodies[ i ];
+	// Update rigid bodies to match physics co-ordinates
+	for (let rigidBodiesIndex = 0; rigidBodiesIndex < world.rigidBodies.length; rigidBodiesIndex++) {
+		let objThree = world.rigidBodies[rigidBodiesIndex];
 		let objAmmo = objThree.userData.physicsBody;
 		let motionState = objAmmo.getMotionState();
 		if (motionState) {
