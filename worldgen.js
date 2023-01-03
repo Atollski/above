@@ -1,52 +1,124 @@
 /* global THREE, Ammo */
 import {SeededRandom} from './random.js';
 
-export class Terrain extends THREE.Mesh {
+export class WorldGen {
 	constructor(world, settings) {
-//		let heightData = generateHeight(16, 16, -7, 2); // example terrain
-		let chunkSize = 564;
-		let heightData = Terrain.generateChunk(0, 0, chunkSize, 69420); // example terrain
-
-		// build the geometry
-		const geometry = new THREE.PlaneGeometry(3500, 3500, chunkSize-1, chunkSize-1);
-		geometry.rotateX(-Math.PI / 2);
-		const vertices = geometry.attributes.position.array;
-		let random = new SeededRandom(95839);
-		for (let i=0, j=0, l=vertices.length; i<l; i++, j+=3) {
-//			vertices[j + 1] = -1.5 + (random.next * 3); // random height map
-			vertices[j + 1] = heightData[i]; // use example height map
-		}
-
-		geometry.computeVertexNormals();
-
-		super(geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
-
-		this.castShadow = true;
-		this.receiveShadow = true;
-		this.position.set(0,0,0);
-		world.scene.add(this);
-		this.rigidBody({physicsWorld: world.physicsWorld}, 1); // collision group 1 represents terrain
+		this.settings = Object.assign ({size: 100}, settings);
+		this.chunks = [];
+		
+		this.generateChunks(world, settings);
 	}
 	
 	/**
-	* Create a chunk of land given co-ordinates and 
-	* @param {type} x
-	* @param {type} y
-	* @param {type} resolution
-	* @param {type} seed
-	* @returns {undefined}
-	*/
-   static generateChunk(x, y, resolution, seed) {
-		let random = new SeededRandom(seed);
-		const data = new Float32Array(resolution * resolution);
-		for (let xindex = 0; xindex < resolution; xindex++) {
-		   for (let yindex = 0; yindex < resolution; yindex++) {
-			   data[xindex * resolution + yindex] = -1.5 + (random.next * 3); // random height map
-		   }
+	 * Generate chunks around camera position
+	 * @param {type} world
+	 * @param {type} settings
+	 * @returns {undefined}
+	 */
+	generateChunks(world, settings) {
+		settings = Object.assign(this.settings, settings);
+		
+		// convert position to an index
+		let xcentre = Math.floor(world.camera.position.x / settings.size);
+		let zcentre = Math.floor(world.camera.position.z / settings.size);
+		
+		for (let xindex = xcentre - 5; xindex < xcentre + 5; xindex++) {
+			for (let zindex = zcentre - 5; zindex < zcentre + 2; zindex++) {
+				if (!this.chunks[xindex + "," + zindex]) {
+					console.log("Creating " + xindex + ", " + zindex);
+					this.chunks[xindex + "," + zindex] = new Chunk(world, Object.assign(settings,{x: xindex * settings.size , z: zindex * settings.size}));
+				}
+			}
 		}
+		
+		
+		
+		
+	}
+}
+
+class Chunk {
+	constructor(world, settings) {
+		settings = Object.assign (
+			{
+				x: 0
+				,z: 0
+				, size: 100
+				, segments: 32
+			}, settings
+		);
+
+		this.ownedObjects = [];
+		
+		{ // build the terrain height map
+			let heightMap = Chunk.generateHeightMap(settings.x, settings.z, settings.segments, world.seed); // example terrain
+			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, settings.segments-1, settings.segments-1);
+			geometry.rotateX(-Math.PI / 2); // adjust rotation to match physics
+			const vertices = geometry.attributes.position.array;
+
+			for (let i=0, j=0, l=vertices.length; i<l; i++, j+=3) {
+				vertices[j + 1] = heightMap[i]; // use generated height map
+			}
+
+			geometry.computeVertexNormals();
+
+			let terrain = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
+
+			terrain.castShadow = true;
+			terrain.receiveShadow = true;
+			terrain.position.set(settings.x, 0,settings.z);
+			world.scene.add(terrain);
+			terrain.rigidBody({physicsWorld: world.physicsWorld}, 1); // collision group 1 represents terrain
+			this.ownedObjects.push(terrain);
+		}
+		
+		{ // add the ocean
+			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, 1, 1);
+			let ocean = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x0000ff}));
+			ocean.rotateX( - Math.PI / 2 );
+			ocean.material.transparent = true;
+			ocean.material.opacity = 0.5;
+			ocean.receiveShadow = true;
+			ocean.position.set(settings.x,0,settings.z);
+			world.scene.add(ocean);
+			this.ownedObjects.push(ocean);
+		}
+	}
+	
+	
+	destroy(world) {
+		
+	}
+	
+	/**
+	 * Create a height map of land given co-ordinates and 
+	 * @param {type} x
+	 * @param {type} z
+	 * @param {type} segments
+	 * @param {type} seed
+	 * @returns {undefined}
+	 */
+	static generateHeightMap(x, z, segments, seed) {
+		let random = new SeededRandom(seed);
+		const data = new Float32Array(segments * segments);
+		for (let xindex = 0; xindex < segments; xindex++) {
+			for (let yindex = 0; yindex < segments; yindex++) {
+				data[xindex * segments + yindex] = -1.5 + (random.next * 3); // random height map
+			}
+		}
+		
+		// set fixed height borders
+		for (let borderIndex = 0; borderIndex < segments; borderIndex++) {
+			data[borderIndex] = 5; // top row, (y = 0)
+			data[borderIndex * segments + 0] = 5; // left column (x = 0)
+			data[borderIndex * segments + segments -1] = 5; // right column
+			data[(segments-1) * (segments) + borderIndex] = 5; // bottom row
+		}
+		
 		return data;
 	}
 }
+
 
 export class Ocean extends THREE.Mesh {
 	constructor(world, settings) {
@@ -60,9 +132,6 @@ export class Ocean extends THREE.Mesh {
 		world.scene.add(this);
 	}
 }
-
-
-
 
 // create a height map suitable for the game
 function generateHeight(width, depth, minHeight, maxHeight) {

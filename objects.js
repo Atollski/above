@@ -156,7 +156,8 @@ export class TestAircraft extends Aircraft { // test aircraft
 		//Ammojs Section
 		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}, 2); // construct rigidbody - collision group 2 for aircraft
 
-		body.setDamping(0.6, 0.6); // general, angular
+//		body.setDamping(0.6, 0.6); // general, angular
+		body.setDamping(0.1, 0.6); // general, angular
 	}
 }
 

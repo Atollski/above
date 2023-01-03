@@ -1,6 +1,6 @@
 /* global THREE, Ammo, Player */
 import {TestAircraft, Block} from './objects.js';
-import {Terrain, Ocean} from './worldgen.js';
+import {WorldGen} from './worldgen.js';
 import {DefaultFlightController} from './controller.js';
 //import {SeededRandom} from './random.js';
 
@@ -14,6 +14,7 @@ let world = {
 	scene: null, camera: null, render: null, dirLight: null, worldTransform: null, clock: null // graphics 
 	, physicsWorld: null, rigidBodies: [] // physics
 	, controllers: [], controllableVehicles: [], systems: [] //game
+	, seed: 69420 // world generation seed
 };
 let keys = [];
 let playerController = null;
@@ -28,23 +29,22 @@ function start () {
 	setupPhysicsWorld();
 	setupGraphics();
 	
-	new Terrain(world);
-	new Ocean(world);
+	world.worldgen = new WorldGen(world, {size: 100, segments: 128});
 	
-	for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
-		let angle = Math.random() * Math.PI * 2;
-		let distance = 15 + Math.random() * 120;
-		let targetX = distance * Math.sin(angle);
-		let targetZ = distance * Math.cos(angle);
-		new Block(world, {pos: {x:targetX, y:-2, z:targetZ}, size: {x:10, y:8, z:10}}); // foundation ending at +2
-		for (let z=targetZ - 2; z< targetZ + 2.01; z+=2) {
-			for (let y=3; y<19; y+=2) {
-				for (let x=targetX - 2; x<targetX + 2.01; x+=2) {
-					new Block(world, {pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 0.05});
-				}	
-			}
-		}
-	}
+//	for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
+//		let angle = Math.random() * Math.PI * 2;
+//		let distance = 15 + Math.random() * 120;
+//		let targetX = distance * Math.sin(angle);
+//		let targetZ = distance * Math.cos(angle);
+//		new Block(world, {pos: {x:targetX, y:-2, z:targetZ}, size: {x:10, y:8, z:10}}); // foundation ending at +2
+//		for (let z=targetZ - 2; z< targetZ + 2.01; z+=2) {
+//			for (let y=3; y<19; y+=2) {
+//				for (let x=targetX - 2; x<targetX + 2.01; x+=2) {
+//					new Block(world, {pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 1});
+//				}	
+//			}
+//		}
+//	}
 
 	world.controllableVehicles.push(new TestAircraft(world));
 	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: 6, z: 0}}));
@@ -86,11 +86,11 @@ function setupGraphics(){
 	world.dirLight.shadow.mapSize.width = 2048;
 	world.dirLight.shadow.mapSize.height = 2048;
 
-	let d = 150;
-	world.dirLight.shadow.camera.left = -d;
-	world.dirLight.shadow.camera.right = d;
-	world.dirLight.shadow.camera.top = d;
-	world.dirLight.shadow.camera.bottom = -d;
+	let shadowClip = 150;
+	world.dirLight.shadow.camera.left = -shadowClip;
+	world.dirLight.shadow.camera.right = shadowClip;
+	world.dirLight.shadow.camera.top = shadowClip;
+	world.dirLight.shadow.camera.bottom = -shadowClip;
 	world.dirLight.shadow.camera.far = 1000;
 
 	//Setup the renderer
@@ -113,10 +113,37 @@ function renderFrame() {
 	world.systems.forEach(system=>system.process(deltaTime, world));
 	
 	updatePhysics(deltaTime);
-	world.camera.position.set(playerController.vehicle.position.x, world.camera.position.y, playerController.vehicle.position.z + 70); // maintain height
-	world.camera.lookAt(playerController.vehicle.position); // follow the player position
 	
-	
+	if ("chase" === world.cameraMode) {
+		// chase camera position
+		world.camera.position.set(
+			playerController.vehicle.position.x
+			, playerController.vehicle.position.y + 3
+			, playerController.vehicle.position.z
+		);
+
+		// chase camera orientation
+		let motionState = playerController.vehicle.userData.physicsBody.getMotionState();
+		if (motionState) {
+			motionState.getWorldTransform(world.worldTransform);
+			let rot = world.worldTransform.getRotation();
+			world.camera.quaternion.set(rot.x(), rot.y(), rot.z(), rot.w());
+		}
+	} else if ("overhead" === world.cameraMode) { // overhead view
+		// overhead camera position
+		world.camera.position.set(
+			playerController.vehicle.position.x
+			, playerController.vehicle.position.y + 50
+			, playerController.vehicle.position.z
+		);
+	} else { // virus style camera position
+		world.camera.position.set(playerController.vehicle.position.x, world.camera.position.y, playerController.vehicle.position.z + 70); // maintain height
+		world.camera.lookAt(playerController.vehicle.position); // follow the player position
+	}
+
+
+	world.worldgen.generateChunks(world);
+
 	// have the light point at the player
 	world.dirLight.target = playerController.vehicle;
 	world.dirLight.position.set(playerController.vehicle.position.x-30, playerController.vehicle.position.y+100, playerController.vehicle.position.z+60);
