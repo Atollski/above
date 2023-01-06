@@ -5,7 +5,6 @@ import {DefaultFlightController} from './controller.js';
 //import {SeededRandom} from './random.js';
 
 /** CURRENTLY WORKING ON ***
- * Smoke effects
  * Random terrain
  */
 
@@ -29,23 +28,9 @@ function start () {
 	setupPhysicsWorld();
 	setupGraphics();
 	
-	world.worldgen = new WorldGen(world, {size: 100, segments: 128});
+	// initiate an infinite world generator
+	world.worldgen = new WorldGen(world, {size: 30, segments: 250});
 	
-//	for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
-//		let angle = Math.random() * Math.PI * 2;
-//		let distance = 15 + Math.random() * 120;
-//		let targetX = distance * Math.sin(angle);
-//		let targetZ = distance * Math.cos(angle);
-//		new Block(world, {pos: {x:targetX, y:-2, z:targetZ}, size: {x:10, y:8, z:10}}); // foundation ending at +2
-//		for (let z=targetZ - 2; z< targetZ + 2.01; z+=2) {
-//			for (let y=3; y<19; y+=2) {
-//				for (let x=targetX - 2; x<targetX + 2.01; x+=2) {
-//					new Block(world, {pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 1});
-//				}	
-//			}
-//		}
-//	}
-
 	world.controllableVehicles.push(new TestAircraft(world));
 	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: 6, z: 0}}));
 	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 10, y: 6, z: 0}}));
@@ -76,7 +61,7 @@ function setupGraphics(){
 	world.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 5000);
 	world.camera.position.set(0, 50, 70);
 	world.camera.lookAt(new THREE.Vector3(0, 0, 0));
-
+//	world.cameraMode = "overhead";
 	//Add directional light. It follows the player so shadows are always effective
 	world.dirLight = new THREE.DirectionalLight( 0xffffff , 1);
 	world.dirLight.color.setHSL(0.1, 1, 0.95);
@@ -136,6 +121,7 @@ function renderFrame() {
 			, playerController.vehicle.position.y + 50
 			, playerController.vehicle.position.z
 		);
+		world.camera.lookAt(playerController.vehicle.position); // follow the player position
 	} else { // virus style camera position
 		world.camera.position.set(playerController.vehicle.position.x, world.camera.position.y, playerController.vehicle.position.z + 70); // maintain height
 		world.camera.lookAt(playerController.vehicle.position); // follow the player position

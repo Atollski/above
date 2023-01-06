@@ -1,6 +1,25 @@
 /* global THREE, Ammo */
 import {DefaultFlightController} from './controller.js';
 
+class Tower {
+	constructor(world, settings) {
+		for (let towerCount = 0; towerCount < 10; towerCount++) { // create a pillar of doom
+			let angle = Math.random() * Math.PI * 2;
+			let distance = 15 + Math.random() * 120;
+			let targetX = distance * Math.sin(angle);
+			let targetZ = distance * Math.cos(angle);
+			new Block(world, {pos: {x:targetX, y:-2, z:targetZ}, size: {x:10, y:8, z:10}}); // foundation ending at +2
+			for (let z=targetZ - 2; z< targetZ + 2.01; z+=2) {
+				for (let y=3; y<19; y+=2) {
+					for (let x=targetX - 2; x<targetX + 2.01; x+=2) {
+						new Block(world, {pos: {x:x, y:y, z:z}, size: {x:2, y:2, z:2}, mass: 1});
+					}	
+				}
+			}
+		}
+	}
+}
+
 class Engine extends THREE.Mesh {
 	constructor(settings) {
 		super(new THREE.CylinderGeometry(1,1,1,10,1), new THREE.MeshPhongMaterial({color: 0x999999}));
@@ -11,21 +30,28 @@ class Engine extends THREE.Mesh {
 }
 
 class Rocket extends THREE.Mesh {
-	fuel = 4; // seconds of flight
+	age = 0; // maintain age of rocket for disposal
 	constructor(world, settings) {
-		super(new THREE.CylinderGeometry(0.1,0.1,1.5,6,1), new THREE.MeshPhongMaterial({color: 0x999999}));
+		// create default settings
 		settings = Object.assign (
 			{
 				pos: {x:0, y:-1, z:0}
-				, mass: 1
-				, color: 0x101022
+				,mass: 1
+				,color: 0x999999 // light grey
+				,fuel: 4 // seconds of flight
 			}, settings
 		);
+
+		super(new THREE.CylinderGeometry(0.1,0.1,1.5,6,1), new THREE.MeshPhongMaterial({color: settings.color}));
+		
+		this.fuel = settings.fuel;
 		this.scale.set(1,1,1);
 		this.position.set(settings.pos.x, settings.pos.y, settings.pos.z);
 		if (settings.quaternion) {
 			this.setRotationFromQuaternion(settings.quaternion);
 		}
+		
+		this.castShadow = true;
 		
 		// collision group 4, avoid collision with aircraft collision group 2
 		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: settings.mass}, 4, 5); // construct rigidbody
@@ -42,6 +68,7 @@ class Rocket extends THREE.Mesh {
 	
 	process(delta, world) {
 		this.fuel -= delta;
+		this.age += delta;
 		if (this.fuel > 0) { // rocket can only fly so far!
 			let impulse = new THREE.Vector3(0,-40,0); // shouldn't be on the Y axis, should be +100 Z
 			impulse.multiplyScalar(delta);
@@ -156,8 +183,8 @@ export class TestAircraft extends Aircraft { // test aircraft
 		//Ammojs Section
 		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}, 2); // construct rigidbody - collision group 2 for aircraft
 
-//		body.setDamping(0.6, 0.6); // general, angular
-		body.setDamping(0.1, 0.6); // general, angular
+		body.setDamping(0.6, 0.6); // (general, angular) - easy high friction
+//		body.setDamping(0.1, 0.6); // (general, angular) - more difficult, low general friction
 	}
 }
 

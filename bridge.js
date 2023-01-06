@@ -16,6 +16,10 @@ THREE.Quaternion.prototype.ammo = function() { // Quaternion conversion
 	return new Ammo.btQuaternion(this.x,this.y,this.z, this.w);
 };
 
+/**
+ * Convert a THREE box to Ammo
+ * @returns {Ammo.btBoxShape} Ammo equivalent of a THREE box
+ */
 THREE.BoxBufferGeometry.prototype.ammoGeometry = function() {
 	return new Ammo.btBoxShape(new Ammo.btVector3(
 		this.parameters.width*0.5
@@ -24,6 +28,10 @@ THREE.BoxBufferGeometry.prototype.ammoGeometry = function() {
 	));
 };
 
+/**
+ * Convert a THREE cylinder to Ammo
+ * @returns {Ammo.btCylinderShape} Ammo equivalent of a THREE cylinder
+ */
 THREE.CylinderGeometry.prototype.ammoGeometry = function() {
 	return new Ammo.btCylinderShape(new Ammo.btVector3(
 		this.parameters.radiusTop
@@ -32,7 +40,10 @@ THREE.CylinderGeometry.prototype.ammoGeometry = function() {
 	));
 };
 
-
+/**
+ * Convert a THREE plane geometry (height map) to Ammo
+ * @returns {THREE.PlaneGeometry.prototype.ammoGeometry.heightFieldShape|Ammo.btHeightfieldTerrainShape} Ammo equivalent of a THREE plane geometry
+ */
 THREE.PlaneGeometry.prototype.ammoGeometry = function() {
 	const upAxis = 1; // Up axis = 0 for X, 1 for Y, 2 for Z. Normally 1 = Y is used.
 	const hdt = 'PHY_FLOAT'; // hdt, height data type. "PHY_FLOAT" is used. Possible values are "PHY_FLOAT", "PHY_UCHAR", "PHY_SHORT"
@@ -40,7 +51,7 @@ THREE.PlaneGeometry.prototype.ammoGeometry = function() {
 	const terrainWidth = this.parameters.widthSegments + 1;
 	const terrainDepth = this.parameters.heightSegments + 1;
 	// Creates height data buffer in Ammo heap
-	ammoHeightData = Ammo._malloc( 4 * terrainWidth * terrainDepth );
+	ammoHeightData = Ammo._malloc(4 * terrainWidth * terrainDepth);
 
 	// Copy the javascript height data array to the Ammo one.
 	let p = 0;
@@ -78,6 +89,13 @@ THREE.PlaneGeometry.prototype.ammoGeometry = function() {
 	return heightFieldShape;
 };
 
+/**
+ * Create a rigid body for a mesh
+ * @param {type} settings
+ * @param {type} collisionGroup
+ * @param {type} collisionMask
+ * @returns {THREE.Mesh.prototype.rigidBody.rigidBody|Ammo.btRigidBody}
+ */
 THREE.Mesh.prototype.rigidBody = function(settings, collisionGroup, collisionMask) {
 	settings = settings || {}; // ensure settings not null
 	
@@ -114,9 +132,13 @@ THREE.Mesh.prototype.rigidBody = function(settings, collisionGroup, collisionMas
 	
 	let rigidBody = new Ammo.btRigidBody(rbInfo);
 	
-	if (settings.physicsWorld) settings.physicsWorld.addRigidBody(rigidBody, collisionGroup || 65535, collisionMask || 65535);
+	this.userData.physicsBody = rigidBody; // affected by physics
+	
+	if (settings.physicsWorld) {
+		rigidBody.physicsWorld = settings.physicsWorld;
+		settings.physicsWorld.addRigidBody(rigidBody, collisionGroup || 65535, collisionMask || 65535);
+	}
 	if (settings.rigidBodies) { // add this thing to the rigid bodies list
-		this.userData.physicsBody = rigidBody; // affected by physics
 		settings.rigidBodies.push(this);
 	}
 	return rigidBody;

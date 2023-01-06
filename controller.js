@@ -14,6 +14,7 @@ export class DefaultFlightController {
 	constructor(world, vehicle) {
 		this.bind(vehicle); // direct this controller to the specified vehicle
 
+		//window.addEventListener("keydown", event=>{console.log(event.keyCode);});
 		window.addEventListener("keydown", event => {
 			this.keys[event.keyCode] = 1;
 			let vehicleIndex = world.controllableVehicles.indexOf(this.vehicle);
@@ -21,10 +22,10 @@ export class DefaultFlightController {
 			this.bind(world.controllableVehicles[vehicleIndex % world.controllableVehicles.length]); // move to another vehicle
 			console.log();
 		});
-		//window.addEventListener("keydown", event=>{console.log(event.keyCode);});
 		window.addEventListener("keyup", event => {
 			this.keys[event.keyCode] = 0;
 		});
+		
 		window.addEventListener("wheel", event => {
 			this.vehicle.impulse = this.vehicle.impulse || new THREE.Vector3();
 			this.vehicle.impulse.y = Math.max(this.vehicle.impulse.y - event.deltaY * 0.1, 0); // y scrolling controls vertical impulse - cannot go below 0
@@ -32,7 +33,6 @@ export class DefaultFlightController {
 			this.vehicle.torqueImpulse = this.vehicle.torqueImpulse || new THREE.Vector3();
 			this.vehicle.torqueImpulse.z -= event.deltaX * 0.5; // roll applied via mouse wheel x scrolling
 		});
-
 		window.addEventListener("mousemove", event => {
 			// player rotation around the Y axis (yaw) should not factor in the orientation of the player and remain in line with the horizon
 			this.vehicle.horizonTorqueImpulse = this.vehicle.horizonTorqueImpulse || new THREE.Vector3();
@@ -43,7 +43,6 @@ export class DefaultFlightController {
 			this.vehicle.horizonTorqueImpulse.y -= event.movementX * 2.0;
 			this.vehicle.torqueImpulse.x += event.movementY * 2.0;
 		});
-
 		world.renderer.domElement.onmousedown = event => {
 			if (document.pointerLockElement === null) { // lock pointer to world
 				world.renderer.domElement.requestPointerLock();
