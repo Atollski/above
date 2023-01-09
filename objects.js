@@ -54,7 +54,7 @@ class Rocket extends THREE.Mesh {
 		this.castShadow = true;
 		
 		// collision group 4, avoid collision with aircraft collision group 2
-		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: settings.mass}, 4, 5); // construct rigidbody
+		let body = this.ammoRigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: settings.mass}, 4, 5); // construct rigid body
 		
 		let force = new THREE.Vector3(0,-20,0); // shouldn't be on the Y axis, should be +100 Z
 		
@@ -181,7 +181,7 @@ export class TestAircraft extends Aircraft { // test aircraft
 		world.scene.add(this);
 
 		//Ammojs Section
-		let body = this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}, 2); // construct rigidbody - collision group 2 for aircraft
+		let body = this.ammoRigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}, 2); // construct rigid body - collision group 2 for aircraft
 
 		body.setDamping(0.6, 0.6); // (general, angular) - easy high friction
 //		body.setDamping(0.1, 0.6); // (general, angular) - more difficult, low general friction
@@ -200,6 +200,6 @@ export class Block extends THREE.Mesh {
 		this.castShadow = true;
 		this.receiveShadow = true;
 		world.scene.add(this);
-		this.rigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass:settings.mass});
+		this.ammoRigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass:settings.mass});
 	}
 }

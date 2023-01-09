@@ -29,7 +29,7 @@ function start () {
 	setupGraphics();
 	
 	// initiate an infinite world generator
-	world.worldgen = new WorldGen(world, {size: 30, segments: 250});
+	world.worldgen = new WorldGen(world, {size: 30, segments: 30});
 	
 	world.controllableVehicles.push(new TestAircraft(world));
 	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: 6, z: 0}}));

@@ -27,7 +27,6 @@ export class WorldGen {
 			for (let zindex = zcentre - 5; zindex <= zcentre + 2; zindex++) {
 				let chunkName = xindex + "," + zindex;
 				if (!this.chunks[chunkName]) {
-					console.log("Creating " + chunkName);
 					this.chunks[chunkName] = new Chunk(world, Object.assign(settings,{x: xindex * settings.size , z: zindex * settings.size}));
 				}
 				validChunks.push(this.chunks[chunkName]);
@@ -37,7 +36,6 @@ export class WorldGen {
 		// cull things
 		for (let chunk in this.chunks) {
 			if (validChunks.includes(this.chunks[chunk]) === false) {
-				console.log("Destroying " + chunk);
 				this.chunks[chunk].destroy();
 				delete this.chunks[chunk];
 			}
@@ -77,7 +75,7 @@ class Chunk {
 			terrain.receiveShadow = true;
 			terrain.position.set(settings.x, 0,settings.z);
 			this.world.scene.add(terrain);
-			terrain.rigidBody({physicsWorld: this.world.physicsWorld}, 1); // collision group 1 represents terrain
+			terrain.ammoRigidBody({physicsWorld: this.world.physicsWorld}, 1); // collision group 1 represents terrain
 			this.ownedObjects.push(terrain);
 		}
 		
@@ -99,14 +97,23 @@ class Chunk {
 	 * @returns {undefined}
 	 */
 	destroy() {
+		let physicsBody = null;
 		if (this.ownedObjects) {
 			for (let index = this.ownedObjects.length - 1; index >= 0; index--) {
-				if (this.ownedObjects[index].userData.physicsBody) {
-					if (this.ownedObjects[index].userData.physicsBody.physicsWorld) {
-						this.ownedObjects[index].userData.physicsBody.physicsWorld.removeRigidBody(this.ownedObjects[index].userData.physicsBody);
+				physicsBody = this.ownedObjects[index].userData.physicsBody;
+				if (physicsBody) {
+					if (physicsBody.physicsWorld) { // this physics body exists in a physics world
+						physicsBody.physicsWorld.removeRigidBody(physicsBody);
 					}
 					
-					this.ownedObjects[index].userData.physicsBody = null; // hopefully this will kill the physics body
+					// the heap appears to be unmanageable, try recycling the addresses
+					if (physicsBody.heapAddress) {
+						Ammo.freeHeap = Ammo.freeHeap || [];
+						Ammo.freeHeap.push(physicsBody.heapAddress);
+					}
+					
+					Ammo.destroy(physicsBody);
+					this.ownedObjects[index].userData.physicsBody = null;
 				}
 				this.world.scene.remove(this.ownedObjects[index]);
 				this.ownedObjects[index].geometry.dispose();

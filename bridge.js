@@ -50,27 +50,31 @@ THREE.PlaneGeometry.prototype.ammoGeometry = function() {
 	const flipQuadEdges = false; // Set this to your needs (inverts the triangles)
 	const terrainWidth = this.parameters.widthSegments + 1;
 	const terrainDepth = this.parameters.heightSegments + 1;
-	// Creates height data buffer in Ammo heap
-	ammoHeightData = Ammo._malloc(4 * terrainWidth * terrainDepth);
-
+	
+	// attempt to recycle 'freed' data from the heap before allocating new data
+	if (Ammo.freeHeap && Ammo.freeHeap.length) {
+		heapAddress = Ammo.freeHeap.pop();
+	} else {
+		heapAddress = Ammo._malloc(4 * terrainWidth * terrainDepth); // Creates height data buffer in Ammo heap. Unable to free this
+	}
+	
 	// Copy the javascript height data array to the Ammo one.
-	let p = 0;
-	let p2 = 0;
+	let addressOffset = 0;
 	
 	// pull height map out
 	let maximum = 0; // keep track of max size (absolute of both positive and negative)
 	const vertices = this.attributes.position.array;
 	for (let threeIndex = 1; threeIndex < vertices.length; threeIndex += 3) { // only iterate over Y components of vertices
-		Ammo.HEAPF32[(ammoHeightData + p) >> 2] = vertices[threeIndex];
+		Ammo.HEAPF32[(heapAddress + addressOffset) >> 2] = vertices[threeIndex]; // >> 2 divides the address by 4 to account for 4 byte float32
 		maximum = Math.max(maximum, Math.abs(vertices[threeIndex]));
-		p += 4; // no fucking idea why
+		addressOffset += 4; // 4 byte float32 address offset
 	}
-	
+
 	// Creates the heightfield physics shape
 	const heightFieldShape = new Ammo.btHeightfieldTerrainShape(
 		terrainWidth,
 		terrainDepth,
-		ammoHeightData,
+		heapAddress,
 		1, // height scale is not really used, since we are using PHY_FLOAT height data type and hence it is ignored
 		-maximum, // minimum height
 		maximum, // maximum height
@@ -78,6 +82,8 @@ THREE.PlaneGeometry.prototype.ammoGeometry = function() {
 		hdt,
 		flipQuadEdges
 	);
+
+	heightFieldShape.heapAddress = heapAddress;
 
 	// Set horizontal scale
 	const scaleX = this.parameters.width / ( terrainWidth - 1 );
@@ -96,7 +102,7 @@ THREE.PlaneGeometry.prototype.ammoGeometry = function() {
  * @param {type} collisionMask
  * @returns {THREE.Mesh.prototype.rigidBody.rigidBody|Ammo.btRigidBody}
  */
-THREE.Mesh.prototype.rigidBody = function(settings, collisionGroup, collisionMask) {
+THREE.Mesh.prototype.ammoRigidBody = function(settings, collisionGroup, collisionMask) {
 	settings = settings || {}; // ensure settings not null
 	
 	let transform = new Ammo.btTransform();
@@ -106,13 +112,13 @@ THREE.Mesh.prototype.rigidBody = function(settings, collisionGroup, collisionMas
 	
 	let motionState = new Ammo.btDefaultMotionState(transform);
 	
-	colShape = new Ammo.btCompoundShape();
+	compoundShape = new Ammo.btCompoundShape();
 	
 	let ammoGeometry = this.geometry.ammoGeometry();
 	if (ammoGeometry) {
 		let childTransform = new Ammo.btTransform();
 		childTransform.setIdentity();
-		colShape.addChildShape(childTransform, ammoGeometry);
+		compoundShape.addChildShape(childTransform, ammoGeometry);
 	}
 	
 	this.children.forEach(child=>{
@@ -122,16 +128,18 @@ THREE.Mesh.prototype.rigidBody = function(settings, collisionGroup, collisionMas
 			childTransform.setIdentity();
 			childTransform.setOrigin(child.position.ammo());
 			childTransform.setRotation(child.quaternion.ammo());
-			colShape.addChildShape(childTransform, ammoGeometry);
+			compoundShape.addChildShape(childTransform, ammoGeometry);
 		}
 	});
 	
 	let localInertia = new Ammo.btVector3(0, 0, 0);
-	colShape.calculateLocalInertia(settings.mass || 0, localInertia);
-	let rbInfo = new Ammo.btRigidBodyConstructionInfo(settings.mass || 0, motionState, colShape, localInertia);
+	compoundShape.calculateLocalInertia(settings.mass || 0, localInertia);
+	let rbInfo = new Ammo.btRigidBodyConstructionInfo(settings.mass || 0, motionState, compoundShape, localInertia);
 	
 	let rigidBody = new Ammo.btRigidBody(rbInfo);
-	
+	if (ammoGeometry.heapAddress) {
+		rigidBody.heapAddress = ammoGeometry.heapAddress;
+	}
 	this.userData.physicsBody = rigidBody; // affected by physics
 	
 	if (settings.physicsWorld) {
