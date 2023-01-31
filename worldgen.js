@@ -23,8 +23,8 @@ export class WorldGen {
 		let zcentre = Math.round(world.camera.position.z / settings.size);
 		let validChunks = [];
 		
-		for (let xindex = xcentre - 5; xindex <= xcentre + 5; xindex++) {
-			for (let zindex = zcentre - 5; zindex <= zcentre + 2; zindex++) {
+		for (let xindex = xcentre - 8; xindex <= xcentre + 8; xindex++) {
+			for (let zindex = zcentre - 18; zindex <= zcentre + 2; zindex++) {
 				let chunkName = xindex + "," + zindex;
 				if (!this.chunks[chunkName]) {
 					this.chunks[chunkName] = new Chunk(world, Object.assign(settings,{x: xindex * settings.size , z: zindex * settings.size}));
@@ -43,7 +43,7 @@ export class WorldGen {
 	}
 }
 
-class Chunk {
+export class Chunk {
 	constructor(world, settings) {
 		settings = Object.assign (
 			{
@@ -58,7 +58,7 @@ class Chunk {
 		this.world = world;
 		
 		{ // build the terrain height map
-			let heightMap = Chunk.generateHeightMap(settings.x, settings.z, settings.segments, world.seed); // example terrain
+			let heightMap = Chunk.generateHeightMap(settings.x, settings.z, settings.size, settings.segments, world.seed); // example terrain
 			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, settings.segments-1, settings.segments-1);
 			geometry.rotateX(-Math.PI / 2); // adjust rotation to match physics
 			const vertices = geometry.attributes.position.array;
@@ -81,6 +81,81 @@ class Chunk {
 	}
 	
 	/**
+	 * Interpolate between two values
+	 * @param {type} a0 first value
+	 * @param {type} a1 second value
+	 * @param {type} w weight
+	 * @returns {Number}
+	 */
+	static interpolate(a0, a1, w) {
+//		return (a1 - a0) * w + a0; // linear interpolation
+//		return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0; // cubic interpolation (smoothstep)
+		return (a1 - a0) * ((w * (w * 6.0 - 15.0) + 10.0) * w * w * w) + a0; // smootherstep
+	}
+	
+	/**
+	 * 
+	 * @param {type} x
+	 * @param {type} z
+	 * @returns {Chunk.randomGradient.worldgenAnonym$6}
+	 */
+	static randomGradient(x, z) {
+		let w = 32; // length of an unsigned value
+		let s = w / 2; // rotation width
+		x >>>= 0; // convert to unsigned value
+		z >>>= 0; // convert to unsigned value
+		x *= 3284157443; z ^= x << s | x >> w-s;
+		z *= 1911520717; x ^= z << s | z >> w-s;
+		x *= 2048419325;
+		let random = x * (Math.PI / ~(~0 >>> 1)); // in [0, 2*Pi]
+		return {x: Math.cos(random), z: Math.sin(random)};
+	}
+	
+	// Computes the dot product of the distance and gradient vectors.
+	static dotGridGradient(ix, iz, x, z) {
+		// Get gradient from integer coordinates
+		let gradient = Chunk.randomGradient(ix, iz);
+
+		// Compute the distance vector
+		let dx = x - ix;
+		let dz = z - iz;
+
+		// Compute the dot-product
+		return (dx*gradient.x + dz*gradient.z);
+	}
+
+	// Compute Perlin noise at coordinates x, y
+	static perlin(x, z) {
+		let perlinScale = 600;
+		let extremity = 140;
+		x /= perlinScale;
+		z /= perlinScale;
+		
+		// Determine grid cell coordinates
+		let x0 = Math.floor(x);
+		let x1 = x0 + 1;
+		let z0 = Math.floor(z);
+		let z1 = z0 + 1;
+
+		// Determine interpolation weights
+		// Could also use higher order polynomial/s-curve here
+		let sx = x - x0;
+		let sz = z - z0;
+
+		// Interpolate between grid point gradients
+		let n0 = Chunk.dotGridGradient(x0, z0, x, z);
+		let n1 = Chunk.dotGridGradient(x1, z0, x, z);
+		let ix0 = Chunk.interpolate(n0, n1, sx);
+
+		n0 = Chunk.dotGridGradient(x0, z1, x, z);
+		n1 = Chunk.dotGridGradient(x1, z1, x, z);
+		let ix1 = Chunk.interpolate(n0, n1, sx);
+
+		let value = Chunk.interpolate(ix0, ix1, sz);
+		return value * extremity; // Will return in range -1 to 1. To make it in range 0 to 1, multiply by 0.5 and add 0.5
+	}
+	
+	/**
 	 * Create a height map of land given co-ordinates and 
 	 * @param {type} x
 	 * @param {type} z
@@ -88,22 +163,31 @@ class Chunk {
 	 * @param {type} seed
 	 * @returns {undefined}
 	 */
-	static generateHeightMap(x, z, segments, seed) {
+	static generateHeightMap(x, z, size, segments, seed) {
 		let random = new SeededRandom(seed);
 		const data = new Float32Array(segments * segments);
+		let height = 0;
+		let segmentSize = (size / segments);
 		for (let xindex = 0; xindex < segments; xindex++) {
-			for (let yindex = 0; yindex < segments; yindex++) {
-				data[xindex * segments + yindex] = -1 + (random.next * 3); // random height map
-//				data[xindex * segments + yindex] = 1; // flat height 1e
+			for (let zindex = 0; zindex < segments; zindex++) {
+				height = Chunk.perlin(x + xindex * segmentSize, z + zindex * segmentSize);
+				data[zindex * segments + xindex] = height; // random height map
+//				data[xindex * segments + zindex] = Chunk.perlin((x + xindex) / perlinScale, (z + zindex ) / perlinScale) * 100; // random height map
+//				data[xindex * segments + zindex] = -1 + (random.next * 3); // random height map
+//				data[xindex * segments + zindex] = 1; // flat height 1e
 			}
 		}
 		
 		// set fixed height borders
 		for (let borderIndex = 0; borderIndex < segments; borderIndex++) {
-			data[borderIndex] = 0; // top row, (y = 0)
-			data[borderIndex * segments + 0] = 0; // left column (x = 0)
-			data[borderIndex * segments + segments -1] = 0; // right column
-			data[(segments-1) * (segments) + borderIndex] = 0; // bottom row
+//			data[borderIndex] = 0; // top row, (y = 0)
+//			data[borderIndex * segments + 0] = 0; // left column (x = 0)
+//			data[borderIndex * segments + segments -1] = 0; // right column
+//			data[(segments-1) * (segments) + borderIndex] = 0; // bottom row
+//			data[borderIndex] = 0; // top row, (y = 0)
+//			data[borderIndex * segments + 0] = 0; // left column (x = 0)
+//			data[borderIndex * segments + segments -1] = 0; // right column
+//			data[(segments-1) * (segments) + borderIndex] = 0; // bottom row
 		}
 		
 		return data;
@@ -139,8 +223,6 @@ class Chunk {
 			}
 		}
 	}
-	
-	
 }
 
 export class Ocean extends THREE.Mesh {

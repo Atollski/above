@@ -1,6 +1,6 @@
 /* global THREE, Ammo, Player */
 import {TestAircraft, Block} from './objects.js';
-import {WorldGen} from './worldgen.js';
+import {Chunk, WorldGen} from './worldgen.js';
 import {DefaultFlightController} from './controller.js';
 //import {SeededRandom} from './random.js';
 
@@ -29,11 +29,11 @@ function start () {
 	setupGraphics();
 	
 	// initiate an infinite world generator
-	world.worldgen = new WorldGen(world, {size: 30, segments: 30});
+	world.worldgen = new WorldGen(world, {size: 30, segments: 20});
 	
-	world.controllableVehicles.push(new TestAircraft(world));
-	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: 6, z: 0}}));
-	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 10, y: 6, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 0, y: Chunk.perlin(0, 0) + 6, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: Chunk.perlin(-10, 0) + 6, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 10, y: Chunk.perlin(10, 0) + 6, z: 0}}));
 
 	// attach flight controller
 	playerController = new DefaultFlightController(world, world.controllableVehicles[0]);
@@ -123,7 +123,11 @@ function renderFrame() {
 		);
 		world.camera.lookAt(playerController.vehicle.position); // follow the player position
 	} else { // virus style camera position
-		world.camera.position.set(playerController.vehicle.position.x, world.camera.position.y, playerController.vehicle.position.z + 70); // maintain height
+		world.camera.position.set(
+			playerController.vehicle.position.x
+			, Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z + 70) + 50
+			, playerController.vehicle.position.z + 70
+		); // maintain height
 		world.camera.lookAt(playerController.vehicle.position); // follow the player position
 	}
 
