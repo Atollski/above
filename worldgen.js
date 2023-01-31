@@ -78,48 +78,6 @@ class Chunk {
 			terrain.ammoRigidBody({physicsWorld: this.world.physicsWorld}, 1); // collision group 1 represents terrain
 			this.ownedObjects.push(terrain);
 		}
-		
-//		{ // add the ocean
-//			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, 1, 1);
-//			let ocean = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x0000ff}));
-//			ocean.rotateX( - Math.PI / 2 );
-//			ocean.material.transparent = true;
-//			ocean.material.opacity = 0.5;
-//			ocean.receiveShadow = true;
-//			ocean.position.set(settings.x,0,settings.z);
-//			this.world.scene.add(ocean);
-//			this.ownedObjects.push(ocean);
-//		}
-	}
-	
-	/**
-	 * Destroy the chunk and all objects within.
-	 * @returns {undefined}
-	 */
-	destroy() {
-		let physicsBody = null;
-		if (this.ownedObjects) {
-			for (let index = this.ownedObjects.length - 1; index >= 0; index--) {
-				physicsBody = this.ownedObjects[index].userData.physicsBody;
-				if (physicsBody) {
-					if (physicsBody.physicsWorld) { // this physics body exists in a physics world
-						physicsBody.physicsWorld.removeRigidBody(physicsBody);
-					}
-					
-					// the heap appears to be unmanageable, try recycling the addresses
-					if (physicsBody.heapAddress) {
-						Ammo.freeHeap = Ammo.freeHeap || [];
-						Ammo.freeHeap.push(physicsBody.heapAddress);
-					}
-					
-					Ammo.destroy(physicsBody);
-					this.ownedObjects[index].userData.physicsBody = null;
-				}
-				this.world.scene.remove(this.ownedObjects[index]);
-				this.ownedObjects[index].geometry.dispose();
-				this.ownedObjects[index].material.dispose(); // might need to do textures at some point
-			}
-		}
 	}
 	
 	/**
@@ -136,7 +94,7 @@ class Chunk {
 		for (let xindex = 0; xindex < segments; xindex++) {
 			for (let yindex = 0; yindex < segments; yindex++) {
 				data[xindex * segments + yindex] = -1 + (random.next * 3); // random height map
-//				data[xindex * segments + yindex] = 1;
+//				data[xindex * segments + yindex] = 1; // flat height 1e
 			}
 		}
 		
@@ -150,8 +108,40 @@ class Chunk {
 		
 		return data;
 	}
+	
+	/**
+	 * Destroy the chunk and all objects within.
+	 * @returns {undefined}
+	 */
+	destroy() {
+		let physicsBody = null;
+		if (this.ownedObjects) {
+			for (let index = this.ownedObjects.length - 1; index >= 0; index--) {
+				physicsBody = this.ownedObjects[index].userData.physicsBody;
+				if (physicsBody) {
+					if (physicsBody.physicsWorld) { // this physics body exists in a physics world
+						physicsBody.physicsWorld.removeRigidBody(physicsBody);
+					}
+					
+					// the heap appears to be unmanageable, try recycling the addresses... but this does not seem to work
+					if (physicsBody.heapAddress) {
+						Ammo.freeHeap = Ammo.freeHeap || [];
+						Ammo.freeHeap.push(physicsBody.heapAddress);
+					}
+					
+					// the physics body is destroyed OK but the heap remains allocated
+					Ammo.destroy(physicsBody);
+					this.ownedObjects[index].userData.physicsBody = null;
+				}
+				this.world.scene.remove(this.ownedObjects[index]);
+				this.ownedObjects[index].geometry.dispose();
+				this.ownedObjects[index].material.dispose(); // might need to do textures at some point
+			}
+		}
+	}
+	
+	
 }
-
 
 export class Ocean extends THREE.Mesh {
 	constructor(world, settings) {
@@ -164,32 +154,4 @@ export class Ocean extends THREE.Mesh {
 		this.position.set(0,0,0);
 		world.scene.add(this);
 	}
-}
-
-// create a height map suitable for the game
-function generateHeight(width, depth, minHeight, maxHeight) {
-	// Generates the height data (a sinus wave)
-
-	const data = new Float32Array( width * depth );
-	const hRange = maxHeight - minHeight;
-	const w2 = width / 2;
-	const d2 = depth / 2;
-	const phaseMult = 12;
-
-	let p = 0;
-
-	for ( let j = 0; j < depth; j ++ ) {
-		for ( let i = 0; i < width; i ++ ) {
-			const radius = Math.sqrt(
-				Math.pow((i - w2 ) / w2, 2.0)
-				+Math.pow( ( j - d2 ) / d2, 2.0)
-			);
-
-			const height = ( Math.sin( radius * phaseMult ) + 1 ) * 0.5 * hRange + minHeight;
-			data[ p ] = height;
-			p ++;
-		}
-	}
-
-	return data;
 }

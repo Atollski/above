@@ -61,7 +61,7 @@ class Rocket extends THREE.Mesh {
 		force.applyQuaternion(this.quaternion); // convert impulse to relative to player orientation
 		body.applyCentralImpulse(force.ammo());
 
-		body.setDamping(0.6, 0.6); // general, angular
+		body.setDamping(0.2, 0.6); // general, angular
 		world.systems.push(this);// this rocket has ongoing propulsion
 		world.scene.add(this);
 	}
@@ -183,7 +183,7 @@ export class TestAircraft extends Aircraft { // test aircraft
 		//Ammojs Section
 		let body = this.ammoRigidBody({physicsWorld: world.physicsWorld, rigidBodies: world.rigidBodies, mass: this.settings.mass}, 2); // construct rigid body - collision group 2 for aircraft
 
-		body.setDamping(0.6, 0.6); // (general, angular) - easy high friction
+		body.setDamping(0.3, 0.6); // (general, angular) - easy high friction
 //		body.setDamping(0.1, 0.6); // (general, angular) - more difficult, low general friction
 	}
 }
