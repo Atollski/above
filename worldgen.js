@@ -3,7 +3,7 @@ import {SeededRandom} from './random.js';
 
 export class WorldGen {
 	constructor(world, settings) {
-		this.settings = Object.assign ({size: 100}, settings);
+		this.settings = Object.assign ({size: 100, viewDistance: 700}, settings);
 		this.chunks = {};
 		
 		this.generateChunks(world, settings);
@@ -23,8 +23,10 @@ export class WorldGen {
 		let zcentre = Math.round(world.camera.position.z / settings.size);
 		let validChunks = [];
 		
-		for (let xindex = xcentre - 8; xindex <= xcentre + 8; xindex++) {
-			for (let zindex = zcentre - 18; zindex <= zcentre + 2; zindex++) {
+		let chunkRadius = Math.ceil(settings.viewDistance / settings.size);
+		
+		for (let xindex = xcentre - chunkRadius; xindex <= xcentre + chunkRadius; xindex++) {
+			for (let zindex = zcentre - chunkRadius; zindex <= zcentre + chunkRadius; zindex++) {
 				let chunkName = xindex + "," + zindex;
 				if (!this.chunks[chunkName]) {
 					this.chunks[chunkName] = new Chunk(world, Object.assign(settings,{x: xindex * settings.size , z: zindex * settings.size}));
@@ -77,6 +79,18 @@ export class Chunk {
 			this.world.scene.add(terrain);
 			terrain.ammoRigidBody({physicsWorld: this.world.physicsWorld}, 1); // collision group 1 represents terrain
 			this.ownedObjects.push(terrain);
+		}
+		
+		{ // add the ocean
+			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, 1, 1);
+			let ocean = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x0000ff}));
+			ocean.rotateX( - Math.PI / 2 );
+			ocean.material.transparent = true;
+			ocean.material.opacity = 0.5;
+			ocean.receiveShadow = true;
+			ocean.position.set(settings.x,0,settings.z);
+			this.world.scene.add(ocean);
+			this.ownedObjects.push(ocean);
 		}
 	}
 	
@@ -159,7 +173,8 @@ export class Chunk {
 	 * Create a height map of land given co-ordinates and 
 	 * @param {type} x
 	 * @param {type} z
-	 * @param {type} segments
+	 * @param {type} size the size of each chunk
+	 * @param {type} segments the number of segments in each chunk
 	 * @param {type} seed
 	 * @returns {undefined}
 	 */
@@ -167,27 +182,14 @@ export class Chunk {
 		let random = new SeededRandom(seed);
 		const data = new Float32Array(segments * segments);
 		let height = 0;
-		let segmentSize = (size / segments);
+		let segmentSize = (size / (segments-1));
 		for (let xindex = 0; xindex < segments; xindex++) {
 			for (let zindex = 0; zindex < segments; zindex++) {
 				height = Chunk.perlin(x + xindex * segmentSize, z + zindex * segmentSize);
 				data[zindex * segments + xindex] = height; // random height map
-//				data[xindex * segments + zindex] = Chunk.perlin((x + xindex) / perlinScale, (z + zindex ) / perlinScale) * 100; // random height map
 //				data[xindex * segments + zindex] = -1 + (random.next * 3); // random height map
 //				data[xindex * segments + zindex] = 1; // flat height 1e
 			}
-		}
-		
-		// set fixed height borders
-		for (let borderIndex = 0; borderIndex < segments; borderIndex++) {
-//			data[borderIndex] = 0; // top row, (y = 0)
-//			data[borderIndex * segments + 0] = 0; // left column (x = 0)
-//			data[borderIndex * segments + segments -1] = 0; // right column
-//			data[(segments-1) * (segments) + borderIndex] = 0; // bottom row
-//			data[borderIndex] = 0; // top row, (y = 0)
-//			data[borderIndex * segments + 0] = 0; // left column (x = 0)
-//			data[borderIndex * segments + segments -1] = 0; // right column
-//			data[(segments-1) * (segments) + borderIndex] = 0; // bottom row
 		}
 		
 		return data;
