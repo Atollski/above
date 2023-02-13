@@ -1,12 +1,7 @@
 /* global THREE, Ammo, Player */
 import {TestAircraft, Block} from './objects.js';
 import {Chunk, WorldGen} from './worldgen.js';
-import {DefaultFlightController} from './controller.js';
-//import {SeededRandom} from './random.js';
-
-/** CURRENTLY WORKING ON ***
- * Random terrain
- */
+import {DefaultFlightController, PositionController} from './controller.js';
 
 //variable declaration section
 let world = {
@@ -29,14 +24,16 @@ function start () {
 	setupGraphics();
 	
 	// initiate an infinite world generator
-	world.worldgen = new WorldGen(world, {size: 30, segments: 3, viewDistance: 800});
+	world.worldgen = new WorldGen(world, {size: 30, segments: 2, viewDistance: 200});
+//	world.worldgen = new WorldGen(world, {size: 10, segments: 3, viewDistance: 200});
 	
-	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 0, y: Chunk.perlin(0, 0) + 6, z: 0}}));
-	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: Chunk.perlin(-10, 0) + 6, z: 0}}));
-	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 10, y: Chunk.perlin(10, 0) + 6, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 0, y: Chunk.perlin(0, 0) + 60, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: -10, y: Chunk.perlin(-10, 0) + 60, z: 0}}));
+	world.controllableVehicles.push(new TestAircraft(world, {pos: {x: 10, y: Chunk.perlin(10, 0) + 60, z: 0}}));
 
 	// attach flight controller
 	playerController = new DefaultFlightController(world, world.controllableVehicles[0]);
+//	playerController = new PositionController(world, world.controllableVehicles[0]); // for debugging position related stuff
 	renderFrame();
 }
 
@@ -89,6 +86,7 @@ function setupGraphics(){
 	world.renderer.shadowMap.enabled = true;
 }
 
+var nextTime = nextTime ? nextTime : new Date().getTime(); // temporary time for console debug
 function renderFrame() {
 	let deltaTime = world.clock.getDelta();
 
@@ -125,12 +123,22 @@ function renderFrame() {
 	} else { // virus style camera position
 		world.camera.position.set(
 			playerController.vehicle.position.x
-			, Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z + 70) + 50
+			, Math.max(Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z + 70), 0) + 100
 			, playerController.vehicle.position.z + 70
 		); // maintain height
 		world.camera.lookAt(playerController.vehicle.position); // follow the player position
 	}
-
+	
+	// console data debugging here
+	if (new Date().getTime() >= nextTime) {
+		nextTime += 500;
+		console.clear();
+		console.log("x: " + playerController.vehicle.position.x);
+		console.log("y: " + playerController.vehicle.position.y);
+		console.log("z: " + playerController.vehicle.position.z);
+		console.log("Perlin: " + Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z));
+		console.log("Height: " + (playerController.vehicle.position.y - Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z)));
+	}
 
 	world.worldgen.generateChunks(world);
 

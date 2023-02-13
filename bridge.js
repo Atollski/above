@@ -122,13 +122,15 @@ THREE.Mesh.prototype.ammoRigidBody = function(settings, collisionGroup, collisio
 	}
 	
 	this.children.forEach(child=>{
-		let ammoGeometry = child.geometry.ammoGeometry();
-		if (ammoGeometry) {
-			let childTransform = new Ammo.btTransform();
-			childTransform.setIdentity();
-			childTransform.setOrigin(child.position.ammo());
-			childTransform.setRotation(child.quaternion.ammo());
-			compoundShape.addChildShape(childTransform, ammoGeometry);
+		if (child.geometry.ammoGeometry instanceof Function) {
+			let ammoGeometry = child.geometry.ammoGeometry();
+			if (ammoGeometry) {
+				let childTransform = new Ammo.btTransform();
+				childTransform.setIdentity();
+				childTransform.setOrigin(child.position.ammo());
+				childTransform.setRotation(child.quaternion.ammo());
+				compoundShape.addChildShape(childTransform, ammoGeometry);
+			}
 		}
 	});
 	

@@ -144,6 +144,17 @@ class Aircraft extends THREE.Mesh {
 	}
 }
 
+class MarkerLine extends THREE.Line {
+	constructor(world, settings) {
+		const markerPoints = [];
+		markerPoints.push(new THREE.Vector3(0,-100,0));
+		markerPoints.push(new THREE.Vector3(0,10,0));
+		
+		super(new THREE.BufferGeometry().setFromPoints(markerPoints), new THREE.LineBasicMaterial({color: 0x0000FF}));
+		
+	}
+}
+
 export class TestAircraft extends Aircraft { // test aircraft
 	constructor(world, settings) {
 		super(world, settings);
@@ -161,6 +172,8 @@ export class TestAircraft extends Aircraft { // test aircraft
 			,(cockpit.geometry.parameters.depth*0.5) - (this.geometry.parameters.depth*0.5) - 1
 		);
 		this.add(cockpit);
+		
+//		this.add(new MarkerLine(world, null)); 
 
 		this.add(new Engine({pos:{x:2, y:0.8, z:2}}));
 		this.add(new Engine({pos:{x:-2, y:0.8, z:2}}));

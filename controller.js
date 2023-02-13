@@ -1,5 +1,33 @@
 /* global THREE, Ammo */
 
+import {Chunk, WorldGen} from './worldgen.js';
+
+export class PositionController {
+	bind(vehicle) {
+		this.vehicle = vehicle; // bind to new vehicle
+	}
+
+	constructor(world, vehicle) {
+		this.bind(vehicle); // direct this controller to the specified vehicle
+		window.addEventListener("mousemove", event => {
+			// player rotation around the Y axis (yaw) should not factor in the orientation of the player and remain in line with the horizon
+			let newPositionX = this.vehicle.position.x + event.movementX * 1.0;
+			let newPositionZ = this.vehicle.position.z + event.movementY * 1.0;
+			this.vehicle.position.set(
+				newPositionX
+				,Chunk.perlin(newPositionX, newPositionZ) + 30
+				,newPositionZ
+			);
+		});
+		
+		world.renderer.domElement.onmousedown = event => {
+			if (document.pointerLockElement === null) { // lock pointer to world
+				world.renderer.domElement.requestPointerLock();
+			}
+		};
+	}
+}
+
 export class DefaultFlightController {
 	keys = [];
 

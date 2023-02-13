@@ -2,6 +2,16 @@
 import {SeededRandom} from './random.js';
 
 export class WorldGen {
+	/**
+	 * Create a world generation system to create terrain and content for the world.
+	 * @param {Object} world the world this builder will put its content in
+	 * @param {Object} settings parameters for the world generator:
+	 * <b>size</b> The size of each chunk
+	 * <b>segments</b> The number of segments each chunk is divided into
+	 * <b>viewDistance</b> The distance around the player the chunks get generated
+	 *
+	 * @returns {undefined}
+	 */
 	constructor(world, settings) {
 		this.settings = Object.assign ({size: 100, viewDistance: 700}, settings);
 		this.chunks = {};
@@ -61,7 +71,7 @@ export class Chunk {
 		
 		{ // build the terrain height map
 			let heightMap = Chunk.generateHeightMap(settings.x, settings.z, settings.size, settings.segments, world.seed); // example terrain
-			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, settings.segments-1, settings.segments-1);
+			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, settings.segments, settings.segments);
 			geometry.rotateX(-Math.PI / 2); // adjust rotation to match physics
 			const vertices = geometry.attributes.position.array;
 
@@ -70,12 +80,17 @@ export class Chunk {
 			}
 
 			geometry.computeVertexNormals();
-
-			let terrain = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
+			let colour = 0x004000;
+			colour = Math.floor(Math.random()*16777215);
+			colour &= 0x00ff00;
+			colour |= 0x008000;
+			
+			let terrain = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: colour}));
+//			let terrain = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
 
 			terrain.castShadow = true;
 			terrain.receiveShadow = true;
-			terrain.position.set(settings.x, 0,settings.z);
+			terrain.position.set(settings.x + settings.size / 2, 0,settings.z + settings.size / 2);
 			this.world.scene.add(terrain);
 			terrain.ammoRigidBody({physicsWorld: this.world.physicsWorld}, 1); // collision group 1 represents terrain
 			this.ownedObjects.push(terrain);
@@ -88,7 +103,7 @@ export class Chunk {
 			ocean.material.transparent = true;
 			ocean.material.opacity = 0.5;
 			ocean.receiveShadow = true;
-			ocean.position.set(settings.x,0,settings.z);
+			ocean.position.set(settings.x + (settings.size / 2),0,settings.z + (settings.size / 2));
 			this.world.scene.add(ocean);
 			this.ownedObjects.push(ocean);
 		}
@@ -179,16 +194,14 @@ export class Chunk {
 	 * @returns {undefined}
 	 */
 	static generateHeightMap(x, z, size, segments, seed) {
-		let random = new SeededRandom(seed);
-		const data = new Float32Array(segments * segments);
+//		let random = new SeededRandom(seed);
+		const data = new Float32Array(Math.pow((segments + 1),2));
 		let height = 0;
-		let segmentSize = (size / (segments-1));
-		for (let xindex = 0; xindex < segments; xindex++) {
-			for (let zindex = 0; zindex < segments; zindex++) {
+		let segmentSize = (size / (segments));
+		for (let xindex = 0; xindex < segments + 1; xindex++) {
+			for (let zindex = 0; zindex < segments + 1; zindex++) {
 				height = Chunk.perlin(x + xindex * segmentSize, z + zindex * segmentSize);
-				data[zindex * segments + xindex] = height; // random height map
-//				data[xindex * segments + zindex] = -1 + (random.next * 3); // random height map
-//				data[xindex * segments + zindex] = 1; // flat height 1e
+				data[zindex * (segments + 1) + xindex] = height; // random height map
 			}
 		}
 		
