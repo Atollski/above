@@ -70,7 +70,7 @@ export class Chunk {
 		this.world = world;
 		
 		{ // build the terrain height map
-			let heightMap = Chunk.generateHeightMap(settings.x, settings.z, settings.size, settings.segments, world.seed); // example terrain
+			let heightMap = Chunk.generateHeightMap(settings.x, settings.z, settings.size, settings.segments, world.seed);
 			const geometry = new THREE.PlaneGeometry(settings.size, settings.size, settings.segments, settings.segments);
 			geometry.rotateX(-Math.PI / 2); // adjust rotation to match physics
 			const vertices = geometry.attributes.position.array;
@@ -86,7 +86,6 @@ export class Chunk {
 			colour |= 0x008000;
 			
 			let terrain = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: colour}));
-//			let terrain = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x004000}));
 
 			terrain.castShadow = true;
 			terrain.receiveShadow = true;

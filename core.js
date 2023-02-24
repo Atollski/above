@@ -130,15 +130,15 @@ function renderFrame() {
 	}
 	
 	// console data debugging here
-	if (new Date().getTime() >= nextTime) {
-		nextTime += 500;
-		console.clear();
-		console.log("x: " + playerController.vehicle.position.x);
-		console.log("y: " + playerController.vehicle.position.y);
-		console.log("z: " + playerController.vehicle.position.z);
-		console.log("Perlin: " + Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z));
-		console.log("Height: " + (playerController.vehicle.position.y - Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z)));
-	}
+//	if (new Date().getTime() >= nextTime) {
+//		nextTime += 500;
+//		console.clear();
+//		console.log("x: " + playerController.vehicle.position.x);
+//		console.log("y: " + playerController.vehicle.position.y);
+//		console.log("z: " + playerController.vehicle.position.z);
+//		console.log("Perlin: " + Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z));
+//		console.log("Height: " + (playerController.vehicle.position.y - Chunk.perlin(playerController.vehicle.position.x, playerController.vehicle.position.z)));
+//	}
 
 	world.worldgen.generateChunks(world);
 

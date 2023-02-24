@@ -5,6 +5,9 @@ import {Chunk, WorldGen} from './worldgen.js';
 export class PositionController {
 	bind(vehicle) {
 		this.vehicle = vehicle; // bind to new vehicle
+		
+//		this.vehicle.userData.physicsBody.setActivationState(0); // 1: Active (allow deactivation for previous vehicle)
+//		this.vehicle.userData.physicsBody.__destroy__()
 	}
 
 	constructor(world, vehicle) {
@@ -18,6 +21,8 @@ export class PositionController {
 				,Chunk.perlin(newPositionX, newPositionZ) + 30
 				,newPositionZ
 			);
+	
+//			this.vehicle.userData.physicsBody.getMotionState().transform.setOrigin(new THREE.Vector3(newPositionX, 100, newPositionZ).ammo());
 		});
 		
 		world.renderer.domElement.onmousedown = event => {
